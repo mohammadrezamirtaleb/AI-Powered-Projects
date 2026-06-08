@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.sublime-*
+
+# OS
+Thumbs.db
+.DS_Store
+
+# ML model files (large binaries)
+*.task
+*.tflite
+*.pb
+*.onnx
+
+# Generated images & videos
+*.mp4
+*.avi
+
+# Misc
+*.log
