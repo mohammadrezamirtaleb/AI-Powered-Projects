@@ -1,5 +1,9 @@
 # ✋ Real-Time Hand Tracking & Virtual Hand Visualization
 
+<p align="center">
+  <img src="images/banner.png" width="100%">
+</p>
+
 A Computer Vision project that performs real-time hand detection and tracking using MediaPipe Hand Landmarker and OpenCV.
 
 The system captures webcam input, detects up to two hands simultaneously, applies landmark smoothing to reduce jitter, and renders a virtual neural-network-style hand representation alongside the live video stream.
