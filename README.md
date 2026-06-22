@@ -45,24 +45,88 @@ Whether you are a student, researcher, data scientist, AI engineer, or industry 
 ```text
 AI-Powered-Projects/
 │
-├── Machine-Learning/
-├── Deep-Learning/
-├── Computer-Vision/
-├── Natural-Language-Processing/
-├── Large-Language-Models/
-├── Time-Series-Forecasting/
-├── Predictive-Maintenance/
-├── Digital-Twins/
-├── Industrial-AI/
-├── Data-Science/
-├── MLOps/
+├── 01-Machine-Learning/
+│   ├── Regression/
+│   ├── Classification/
+│   ├── Clustering/
+│   └── Feature-Engineering/
+│
+├── 02-Deep-Learning/
+│   ├── ANN/
+│   ├── CNN/
+│   ├── RNN/
+│   ├── LSTM/
+│   └── Transformers/
+│
+├── 03-Computer-Vision/
+│   ├── Object-Detection/
+│   ├── Image-Classification/
+│   ├── Segmentation/
+│   └── Industrial-Inspection/
+│
+├── 04-NLP/
+│   ├── Text-Classification/
+│   ├── Sentiment-Analysis/
+│   ├── Named-Entity-Recognition/
+│   └── Chatbots/
+│
+├── 05-LLMs/
+│   ├── Prompt-Engineering/
+│   ├── RAG/
+│   ├── Fine-Tuning/
+│   ├── Agents/
+│   └── LangChain/
+│
+├── 06-Time-Series/
+│   ├── Forecasting/
+│   ├── Anomaly-Detection/
+│   └── Predictive-Analytics/
+│
+├── 07-Predictive-Maintenance/
+│   ├── Rotating-Equipment/
+│   ├── Pumps/
+│   ├── Compressors/
+│   └── Turbines/
+│
+├── 08-Digital-Twins/
+│   ├── Process-Digital-Twin/
+│   ├── Equipment-Digital-Twin/
+│   └── Smart-Plant/
+│
+├── 09-Industrial-AI/
+│   ├── Oil-And-Gas/
+│   ├── Petrochemical/
+│   ├── Refinery/
+│   └── Process-Optimization/
+│
+├── 10-Data-Science/
+│   ├── EDA/
+│   ├── Statistics/
+│   ├── Data-Visualization/
+│   └── Feature-Selection/
+│
+├── 11-MLOps/
+│   ├── Docker/
+│   ├── CI-CD/
+│   ├── Model-Monitoring/
+│   └── Deployment/
+│
+├── datasets/
+│
+├── notebooks/
+│
+├── docs/
 │
 ├── assets/
-│   └── banner.png
+│   ├── banner.png
+│   ├── architecture/
+│   └── screenshots/
 │
+├── requirements.txt
+├── environment.yml
+├── CONTRIBUTING.md
 ├── LICENSE
-├── README.md
-└── requirements.txt
+└── README.md
 ```
 
 ---
