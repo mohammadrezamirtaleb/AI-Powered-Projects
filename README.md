@@ -89,28 +89,11 @@ AI-Powered-Projects/
 │   ├── Compressors/
 │   └── Turbines/
 │
-├── Digital-Twins/
-│   ├── Process-Digital-Twin/
-│   ├── Equipment-Digital-Twin/
-│   └── Smart-Plant/
-│
-├── Industrial-AI/
-│   ├── Oil-And-Gas/
-│   ├── Petrochemical/
-│   ├── Refinery/
-│   └── Process-Optimization/
-│
 ├── Data-Science/
 │   ├── EDA/
 │   ├── Statistics/
 │   ├── Data-Visualization/
 │   └── Feature-Selection/
-│
-├── MLOps/
-│   ├── Docker/
-│   ├── CI-CD/
-│   ├── Model-Monitoring/
-│   └── Deployment/
 │
 ├── datasets/
 │
