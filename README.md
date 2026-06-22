@@ -49,6 +49,7 @@ AI-Powered-Projects/
 │   ├── Regression/
 │   ├── Classification/
 │   ├── Clustering/
+    ├── Reinforcement Learning/
 │   └── Feature-Engineering/
 │
 ├── Deep-Learning/
