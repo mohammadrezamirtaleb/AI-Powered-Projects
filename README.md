@@ -43,13 +43,12 @@ Whether you are a student, researcher, data scientist, AI engineer, or industry 
 ## 📂 Repository Structure
 
 ```text
-AI-Powered-Projects/
+AI-Powered-Projects (branch: ai-powered-projects)
 │
 ├── Machine-Learning/
 │   ├── Regression/
 │   ├── Classification/
 │   ├── Clustering/
-    ├── Reinforcement Learning/
 │   └── Feature-Engineering/
 │
 ├── Deep-Learning/
@@ -59,9 +58,15 @@ AI-Powered-Projects/
 │   ├── LSTM/
 │   └── Transformers/
 │
+├── Reinforcement-Learning/
+│   ├── Q-Learning/
+│   ├── Deep-Q-Networks/
+│   ├── Policy-Gradient/
+│   └── PPO/
+│
 ├── Computer-Vision/
-│   ├── Object-Detection/
 │   ├── Image-Classification/
+│   ├── Object-Detection/
 │   ├── Segmentation/
 │   └── Industrial-Inspection/
 │
@@ -71,12 +76,13 @@ AI-Powered-Projects/
 │   ├── Named-Entity-Recognition/
 │   └── Chatbots/
 │
-├── LLMs and VLMs/
+├── LLMs-and-VLMs/
 │   ├── Prompt-Engineering/
 │   ├── RAG/
 │   ├── Fine-Tuning/
 │   ├── Agents/
-│   └── LangChain/
+│   ├── LangChain/
+│   └── Multimodal-AI/
 │
 ├── Time-Series/
 │   ├── Forecasting/
@@ -95,22 +101,21 @@ AI-Powered-Projects/
 │   ├── Data-Visualization/
 │   └── Feature-Selection/
 │
-├── datasets/
-│
-├── notebooks/
-│
 ├── docs/
+│   ├── project-index.md
+│   ├── roadmap.md
+│   └── contribution-guide.md
 │
 ├── assets/
 │   ├── banner.png
 │   ├── architecture/
 │   └── screenshots/
 │
+├── README.md
+├── CONTRIBUTING.md
 ├── requirements.txt
 ├── environment.yml
-├── CONTRIBUTING.md
-├── LICENSE
-└── README.md
+└── LICENSE
 ```
 
 ---
