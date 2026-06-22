@@ -43,26 +43,77 @@ Whether you are a student, researcher, data scientist, AI engineer, or industry 
 ## 📂 Repository Structure
 
 ```text
-AI-Powered-Projects/
+AI-Powered-Projects (branch: ai-powered-projects)
 │
 ├── Machine-Learning/
+│   ├── Regression/
+│   ├── Classification/
+│   ├── Clustering/
+│   └── Feature-Engineering/
+│
 ├── Deep-Learning/
+│   ├── ANN/
+│   ├── CNN/
+│   ├── RNN/
+│   ├── LSTM/
+│   └── Transformers/
+│
+├── Reinforcement-Learning/
+│   ├── Q-Learning/
+│   ├── Deep-Q-Networks/
+│   ├── Policy-Gradient/
+│   └── PPO/
+│
 ├── Computer-Vision/
-├── Natural-Language-Processing/
-├── Large-Language-Models/
-├── Time-Series-Forecasting/
+│   ├── Image-Classification/
+│   ├── Object-Detection/
+│   ├── Segmentation/
+│   └── Industrial-Inspection/
+│
+├── NLP/
+│   ├── Text-Classification/
+│   ├── Sentiment-Analysis/
+│   ├── Named-Entity-Recognition/
+│   └── Chatbots/
+│
+├── LLMs-and-VLMs/
+│   ├── Prompt-Engineering/
+│   ├── RAG/
+│   ├── Fine-Tuning/
+│   ├── Agents/
+│   ├── LangChain/
+│   └── Multimodal-AI/
+│
+├── Time-Series/
+│   ├── Forecasting/
+│   ├── Anomaly-Detection/
+│   └── Predictive-Analytics/
+│
 ├── Predictive-Maintenance/
-├── Digital-Twins/
-├── Industrial-AI/
+│   ├── Rotating-Equipment/
+│   ├── Pumps/
+│   ├── Compressors/
+│   └── Turbines/
+│
 ├── Data-Science/
-├── MLOps/
+│   ├── EDA/
+│   ├── Statistics/
+│   ├── Data-Visualization/
+│   └── Feature-Selection/
+│
+├── docs/
+│   ├── project-index.md
+│   ├── roadmap.md
+│   └── contribution-guide.md
 │
 ├── assets/
-│   └── banner.png
+│   ├── banner.png
+│   ├── architecture/
+│   └── screenshots/
 │
-├── LICENSE
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── LICENSE
 ```
 
 ---
