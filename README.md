@@ -112,9 +112,7 @@ AI-Powered-Projects (branch: ai-powered-projects)
 │   └── screenshots/
 │
 ├── README.md
-├── CONTRIBUTING.md
 ├── requirements.txt
-├── environment.yml
 └── LICENSE
 ```
 
