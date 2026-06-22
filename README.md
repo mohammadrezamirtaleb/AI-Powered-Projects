@@ -45,67 +45,67 @@ Whether you are a student, researcher, data scientist, AI engineer, or industry 
 ```text
 AI-Powered-Projects/
 │
-├── 01-Machine-Learning/
+├── Machine-Learning/
 │   ├── Regression/
 │   ├── Classification/
 │   ├── Clustering/
 │   └── Feature-Engineering/
 │
-├── 02-Deep-Learning/
+├── Deep-Learning/
 │   ├── ANN/
 │   ├── CNN/
 │   ├── RNN/
 │   ├── LSTM/
 │   └── Transformers/
 │
-├── 03-Computer-Vision/
+├── Computer-Vision/
 │   ├── Object-Detection/
 │   ├── Image-Classification/
 │   ├── Segmentation/
 │   └── Industrial-Inspection/
 │
-├── 04-NLP/
+├── NLP/
 │   ├── Text-Classification/
 │   ├── Sentiment-Analysis/
 │   ├── Named-Entity-Recognition/
 │   └── Chatbots/
 │
-├── 05-LLMs/
+├── LLMs and VLMs/
 │   ├── Prompt-Engineering/
 │   ├── RAG/
 │   ├── Fine-Tuning/
 │   ├── Agents/
 │   └── LangChain/
 │
-├── 06-Time-Series/
+├── Time-Series/
 │   ├── Forecasting/
 │   ├── Anomaly-Detection/
 │   └── Predictive-Analytics/
 │
-├── 07-Predictive-Maintenance/
+├── Predictive-Maintenance/
 │   ├── Rotating-Equipment/
 │   ├── Pumps/
 │   ├── Compressors/
 │   └── Turbines/
 │
-├── 08-Digital-Twins/
+├── Digital-Twins/
 │   ├── Process-Digital-Twin/
 │   ├── Equipment-Digital-Twin/
 │   └── Smart-Plant/
 │
-├── 09-Industrial-AI/
+├── Industrial-AI/
 │   ├── Oil-And-Gas/
 │   ├── Petrochemical/
 │   ├── Refinery/
 │   └── Process-Optimization/
 │
-├── 10-Data-Science/
+├── Data-Science/
 │   ├── EDA/
 │   ├── Statistics/
 │   ├── Data-Visualization/
 │   └── Feature-Selection/
 │
-├── 11-MLOps/
+├── MLOps/
 │   ├── Docker/
 │   ├── CI-CD/
 │   ├── Model-Monitoring/
