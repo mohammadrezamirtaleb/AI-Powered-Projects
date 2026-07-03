@@ -214,30 +214,20 @@ python scripts/run_webcam.py --method haar --no-analysis --camera 1
 ## 🏗️ Architecture
 
 ```
-FaceVisionPro/
-├── facevision/                 # Core Python package
-│   ├── core/
-│   │   ├── detector.py         # Face detection (DNN + Haar)
-│   │   ├── landmarks.py        # MediaPipe landmark detection
-│   │   ├── analyzer.py         # DeepFace emotion/age/gender
-│   │   ├── recognizer.py       # Face recognition (dlib)
-│   │   └── pose.py             # Head pose estimation
-│   ├── pipeline/
-│   │   ├── realtime.py         # Real-time webcam pipeline
-│   │   └── batch.py            # Batch image/video processing
-│   ├── utils/
-│   │   ├── drawing.py          # OpenCV HUD overlay
-│   │   ├── io.py               # Image/video I/O helpers
-│   │   └── config.py           # YAML configuration manager
-│   └── dashboard/
-│       └── app.py              # Streamlit dashboard
-├── scripts/                    # CLI entry points
-├── tests/                      # pytest unit tests
-├── configs/                    # YAML configuration files
-├── models/                     # Pre-trained weights (gitignored)
-└── data/
-    ├── known_faces/            # Enrolled face images
-    └── face_database.pkl       # Face embedding database
+FaceVision Pro/
+├── .github/
+├── assets/
+├── configs/
+├── data/
+├── docs/
+├── facevision/
+├── models/
+├── scripts/
+├── tests/
+├── pyproject.toml
+├── setup.py
+├── setup.cfg
+...
 ```
 
 ---
