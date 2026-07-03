@@ -1,0 +1,53 @@
+# Default FaceVision Pro Configuration
+# Modify this file to customize the pipeline behavior.
+
+detector:
+  method: dnn                  # "dnn" (accurate) or "haar" (fast)
+  confidence_threshold: 0.60   # Min confidence for DNN detections (0.0–1.0)
+  min_face_size: [30, 30]      # Min face size in pixels for Haar detection
+
+landmarks:
+  enabled: true
+  max_faces: 5
+  min_detection_confidence: 0.5
+  min_tracking_confidence: 0.5
+  refine_landmarks: true       # Enable iris landmark refinement
+
+analyzer:
+  enabled: true
+  actions:                     # DeepFace analysis targets
+    - emotion
+    - age
+    - gender
+  cooldown_seconds: 1.5        # Re-analyze each face at most every N seconds
+
+recognizer:
+  enabled: true
+  tolerance: 0.50              # Face distance threshold (lower = stricter)
+  model: hog                   # "hog" (fast) or "cnn" (GPU-accelerated)
+  auto_load_database: true     # Load data/face_database.pkl on startup
+
+pose:
+  enabled: true
+  smoothing: 5                 # Temporal smoothing window (frames)
+  draw_axes: true              # Draw 3D orientation axes on face
+
+pipeline:
+  camera_index: 0              # Webcam device index
+  width: 1280
+  height: 720
+  fps: 30
+  flip_horizontal: true        # Mirror the webcam feed
+  show_landmarks: true
+  show_emotion_bars: true
+  record_output: false
+  output_path: outputs/recording.mp4
+
+display:
+  window_title: FaceVision Pro
+  fullscreen: false
+  overlay_alpha: 0.75          # Panel transparency (0=transparent, 1=opaque)
+
+logging:
+  level: INFO                  # DEBUG, INFO, WARNING, ERROR
+  file: null                   # Set a path to log to file, e.g. "facevision.log"

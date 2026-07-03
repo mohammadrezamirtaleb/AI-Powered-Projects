@@ -1,0 +1,39 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Python source files
+*.py text eol=lf
+
+# Config files
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.toml text eol=lf
+*.cfg  text eol=lf
+*.ini  text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+*.rst  text eol=lf
+
+# Shell scripts
+*.sh   text eol=lf
+
+# Windows scripts
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binary files — no line ending normalization
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+*.gif  binary
+*.ico  binary
+*.mp4  binary
+*.avi  binary
+*.caffemodel binary
+*.pb   binary
+*.onnx binary
+*.h5   binary
+*.pkl  binary
+*.npy  binary
+*.npz  binary
