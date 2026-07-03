@@ -1,5 +1,9 @@
 # 👤 FaceVision Pro
 
+<p align="center">
+  <img src="assets/banner.png" alt="FaceVision Pro Banner" width="100%">
+</p>
+
 <div align="center">
 
 [![CI](https://github.com/yourusername/FaceVisionPro/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/FaceVisionPro/actions/workflows/ci.yml)
@@ -34,6 +38,14 @@
 | 🖥️ **Streamlit Dashboard** | Streamlit | Upload & analyze images/videos via browser |
 | ⚙️ **YAML Config** | PyYAML | Fully configurable pipeline |
 | 🤖 **GitHub Actions CI** | GitHub Actions | Lint + test on every push |
+
+---
+
+## 🎥 Demo
+
+<p align="center">
+  <img src="assets/demo.gif" alt="FaceVision Pro Demo" width="85%">
+</p>
 
 ---
 
