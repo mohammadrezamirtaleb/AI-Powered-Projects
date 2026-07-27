@@ -30,15 +30,13 @@ Whether you are a student, researcher, data scientist, AI engineer, or industry 
 
 ## 🎯 Repository Objectives
 
-| # | Objective |
-|---|-----------|
-| 1 | Demonstrate real-world AI applications |
-| 2 | Share machine learning and deep learning projects |
-| 3 | Explore industrial AI use cases |
-| 4 | Showcase predictive analytics solutions |
-| 5 | Build end-to-end data science workflows |
-| 6 | Develop intelligent systems for engineering challenges |
-| 7 | Promote best practices in AI development |
+1. Demonstrate real-world AI applications
+2. Share machine learning and deep learning projects
+3. Explore industrial AI use cases
+4. Showcase predictive analytics solutions
+5. Build end-to-end data science workflows
+6. Develop intelligent systems for engineering challenges
+7. Promote best practices in AI development
 
 ---
 
@@ -123,25 +121,13 @@ AI-Powered-Projects (branch: ai-powered-projects)
 ## 🚀 Featured Domains
 
 ### 🤖 Machine Learning
-
-| Topic | Topic | Topic |
-|-------|-------|-------|
-| Regression | Classification | Clustering |
-| Ensemble Learning | Anomaly Detection | Feature Engineering |
+Regression · Classification · Clustering · Ensemble Learning · Anomaly Detection · Feature Engineering
 
 ### 🧠 Deep Learning
-
-| Topic | Topic | Topic |
-|-------|-------|-------|
-| Artificial Neural Networks (ANNs) | Convolutional Neural Networks (CNNs) | Recurrent Neural Networks (RNNs) |
-| LSTM Networks | Autoencoders | Generative Models |
+Artificial Neural Networks (ANNs) · Convolutional Neural Networks (CNNs) · Recurrent Neural Networks (RNNs) · LSTM Networks · Autoencoders · Generative Models
 
 ### 💬 Natural Language Processing (NLP)
-
-| Topic | Topic | Topic |
-|-------|-------|-------|
-| Text Classification | Named Entity Recognition | Sentiment Analysis |
-| Topic Modeling | Question Answering | Text Summarization |
+Text Classification · Named Entity Recognition · Sentiment Analysis · Topic Modeling · Question Answering · Text Summarization
 
 ### 🔥 Large Language Models (LLMs)
 
@@ -153,90 +139,53 @@ AI-Powered-Projects (branch: ai-powered-projects)
 | Gemma · Qwen | Multi-Agent Systems |
 
 ### 👁️ Computer Vision
-
-| Image Classification | Object Detection | Image Segmentation |
-|---------------------|-----------------|-------------------|
-| Face Recognition | OCR Systems | Industrial Inspection |
+Image Classification · Object Detection · Image Segmentation · Face Recognition · OCR Systems
 
 ### 📈 Time Series Analytics
-
-| Demand Forecasting | Predictive Analytics |
-|--------------------|---------------------|
-| Sensor Data Modeling | Industrial Process Forecasting |
+Demand Forecasting · Predictive Analytics · Sensor Data Modeling · Industrial Process Forecasting
 
 ### 🏭 Industrial AI
-
-| Predictive Maintenance | Soft Sensors | Digital Twins |
-|------------------------|-------------|---------------|
-| Process Optimization | Fault Detection & Diagnosis | Root Cause Analysis |
-| Asset Health Monitoring | | |
+Predictive Maintenance · Soft Sensors · Digital Twins · Process Optimization · Fault Detection & Diagnosis · Root Cause Analysis · Asset Health Monitoring
 
 ---
 
 ## 🛠️ Technologies & Tools
 
 ### Programming & Development
-
-| Python | Jupyter Notebook | Git | GitHub |
-|--------|-----------------|-----|--------|
+`Python` · `Jupyter Notebook` · `Git` · `GitHub`
 
 ### Data Processing & Analysis
-
-| NumPy | Pandas | SciPy | Polars |
-|-------|--------|-------|--------|
+`NumPy` · `Pandas` · `SciPy` · `Polars`
 
 ### Machine Learning
-
-| Scikit-Learn | XGBoost | LightGBM | CatBoost |
-|-------------|---------|----------|---------|
+`Scikit-Learn` · `XGBoost` · `LightGBM` · `CatBoost`
 
 ### Deep Learning
-
-| TensorFlow | Keras | PyTorch |
-|------------|-------|---------|
+`TensorFlow` · `Keras` · `PyTorch`
 
 ### Natural Language Processing
-
-| NLTK | spaCy | Gensim |
-|------|-------|--------|
-| Hugging Face Transformers | Sentence Transformers | Tokenizers |
+`NLTK` · `spaCy` · `Gensim` · `Hugging Face Transformers` · `Sentence Transformers` · `Tokenizers`
 
 ### Large Language Models
-
-| BERT | RoBERTa | DistilBERT | ALBERT |
-|------|---------|------------|--------|
-| DeBERTa | T5 | FLAN-T5 | GPT Models |
-| Llama | Mistral | Gemma | Qwen |
+`BERT` · `RoBERTa` · `DistilBERT` · `ALBERT` · `DeBERTa` · `T5` · `FLAN-T5` · `GPT Models` · `Llama` · `Mistral` · `Gemma` · `Qwen`
 
 ### Computer Vision
-
-| OpenCV | YOLO | TorchVision | Detectron2 | Albumentations |
-|--------|------|-------------|-----------|----------------|
+`OpenCV` · `YOLO` · `TorchVision` · `Detectron2` · `Albumentations`
 
 ### Generative AI & RAG
-
-| LangChain | LangGraph | LlamaIndex | FAISS | ChromaDB |
-|-----------|-----------|------------|-------|---------|
+`LangChain` · `LangGraph` · `LlamaIndex` · `FAISS` · `ChromaDB`
 
 ### Data Visualization
-
-| Matplotlib | Seaborn | Plotly | Bokeh |
-|------------|---------|--------|-------|
+`Matplotlib` · `Seaborn` · `Plotly` · `Bokeh`
 
 ### MLOps & Deployment
-
-| FastAPI | Flask | Streamlit | Docker | MLflow | DVC |
-|---------|-------|-----------|--------|--------|-----|
+`FastAPI` · `Flask` · `Streamlit` · `Docker` · `MLflow` · `DVC`
 
 ### Databases
-
-| SQLite | PostgreSQL | MongoDB |
-|--------|------------|---------|
+`SQLite` · `PostgreSQL` · `MongoDB`
 
 ### Cloud Platforms
-
-| AWS | Microsoft Azure | Google Cloud Platform (GCP) |
-|-----|-----------------|------------------------------|
+`AWS` · `Microsoft Azure` · `Google Cloud Platform (GCP)`
 
 ---
 
@@ -244,11 +193,18 @@ AI-Powered-Projects (branch: ai-powered-projects)
 
 Each project should include:
 
-| Project Description | Problem Statement | Dataset Information |
-|---------------------|-------------------|--------------------|
-| Exploratory Data Analysis (EDA) | Data Preprocessing | Feature Engineering |
-| Model Development | Hyperparameter Tuning | Evaluation Metrics |
-| Results & Insights | Future Improvements | Deployment (if applicable) |
+- Project Description
+- Problem Statement
+- Dataset Information
+- Exploratory Data Analysis (EDA)
+- Data Preprocessing
+- Feature Engineering
+- Model Development
+- Hyperparameter Tuning
+- Evaluation Metrics
+- Results & Insights
+- Future Improvements
+- Deployment (if applicable)
 
 ---
 
@@ -275,12 +231,7 @@ Run notebooks or project scripts according to the documentation provided within 
 
 This repository covers concepts related to:
 
-| Domain | Domain | Domain |
-|--------|--------|--------|
-| Machine Learning | Deep Learning | Natural Language Processing |
-| Computer Vision | Transformer Architectures | Large Language Models |
-| MLOps | Data Engineering | Industrial AI |
-| Digital Twins | Predictive Maintenance | |
+Machine Learning · Deep Learning · Natural Language Processing · Computer Vision · Transformer Architectures · Large Language Models · MLOps · Data Engineering · Industrial AI · Digital Twins · Predictive Maintenance
 
 ---
 
