@@ -154,23 +154,20 @@ AI-Powered-Projects (branch: ai-powered-projects)
 
 ### 👁️ Computer Vision
 
-| Topic | Topic | Topic |
-|-------|-------|-------|
 | Image Classification | Object Detection | Image Segmentation |
+|---------------------|-----------------|-------------------|
 | Face Recognition | OCR Systems | Industrial Inspection |
 
 ### 📈 Time Series Analytics
 
-| Topic | Topic |
-|-------|-------|
 | Demand Forecasting | Predictive Analytics |
+|--------------------|---------------------|
 | Sensor Data Modeling | Industrial Process Forecasting |
 
 ### 🏭 Industrial AI
 
-| Topic | Topic | Topic |
-|-------|-------|-------|
 | Predictive Maintenance | Soft Sensors | Digital Twins |
+|------------------------|-------------|---------------|
 | Process Optimization | Fault Detection & Diagnosis | Root Cause Analysis |
 | Asset Health Monitoring | | |
 
@@ -180,78 +177,66 @@ AI-Powered-Projects (branch: ai-powered-projects)
 
 ### Programming & Development
 
-| Tool | Tool | Tool | Tool |
-|------|------|------|------|
 | Python | Jupyter Notebook | Git | GitHub |
+|--------|-----------------|-----|--------|
 
 ### Data Processing & Analysis
 
-| Library | Library | Library | Library |
-|---------|---------|---------|---------|
 | NumPy | Pandas | SciPy | Polars |
+|-------|--------|-------|--------|
 
 ### Machine Learning
 
-| Framework | Framework | Framework | Framework |
-|-----------|-----------|-----------|-----------|
 | Scikit-Learn | XGBoost | LightGBM | CatBoost |
+|-------------|---------|----------|---------|
 
 ### Deep Learning
 
-| Framework | Framework | Framework |
-|-----------|-----------|-----------|
 | TensorFlow | Keras | PyTorch |
+|------------|-------|---------|
 
 ### Natural Language Processing
 
-| Library | Library | Library |
-|---------|---------|---------|
 | NLTK | spaCy | Gensim |
+|------|-------|--------|
 | Hugging Face Transformers | Sentence Transformers | Tokenizers |
 
 ### Large Language Models
 
-| Model | Model | Model | Model |
-|-------|-------|-------|-------|
 | BERT | RoBERTa | DistilBERT | ALBERT |
+|------|---------|------------|--------|
 | DeBERTa | T5 | FLAN-T5 | GPT Models |
 | Llama | Mistral | Gemma | Qwen |
 
 ### Computer Vision
 
-| Library | Library | Library | Library | Library |
-|---------|---------|---------|---------|---------|
 | OpenCV | YOLO | TorchVision | Detectron2 | Albumentations |
+|--------|------|-------------|-----------|----------------|
 
 ### Generative AI & RAG
 
-| Tool | Tool | Tool | Tool | Tool |
-|------|------|------|------|------|
 | LangChain | LangGraph | LlamaIndex | FAISS | ChromaDB |
+|-----------|-----------|------------|-------|---------|
 
 ### Data Visualization
 
-| Library | Library | Library | Library |
-|---------|---------|---------|---------|
 | Matplotlib | Seaborn | Plotly | Bokeh |
+|------------|---------|--------|-------|
 
 ### MLOps & Deployment
 
-| Tool | Tool | Tool | Tool | Tool | Tool |
-|------|------|------|------|------|------|
 | FastAPI | Flask | Streamlit | Docker | MLflow | DVC |
+|---------|-------|-----------|--------|--------|-----|
 
 ### Databases
 
-| Database | Database | Database |
-|----------|----------|----------|
 | SQLite | PostgreSQL | MongoDB |
+|--------|------------|---------|
 
 ### Cloud Platforms
 
-| Platform | Platform | Platform |
-|----------|----------|----------|
 | AWS | Microsoft Azure | Google Cloud Platform (GCP) |
+|-----|-----------------|------------------------------|
 
 ---
 
@@ -259,9 +244,8 @@ AI-Powered-Projects (branch: ai-powered-projects)
 
 Each project should include:
 
-| Component | Component | Component |
-|-----------|-----------|-----------|
 | Project Description | Problem Statement | Dataset Information |
+|---------------------|-------------------|--------------------|
 | Exploratory Data Analysis (EDA) | Data Preprocessing | Feature Engineering |
 | Model Development | Hyperparameter Tuning | Evaluation Metrics |
 | Results & Insights | Future Improvements | Deployment (if applicable) |
