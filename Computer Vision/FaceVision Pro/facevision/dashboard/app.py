@@ -192,6 +192,17 @@ def main():
                 with col_img:
                     annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
                     st.image(annotated_rgb, caption="Annotated Result", use_container_width=True)
+                    
+                    # Add Download Button
+                    is_success, buffer = cv2.imencode(".jpg", annotated)
+                    if is_success:
+                        st.download_button(
+                            label="⬇️ Download Annotated Image",
+                            data=buffer.tobytes(),
+                            file_name="facevision_result.jpg",
+                            mime="image/jpeg",
+                            use_container_width=True
+                        )
 
                 with col_info:
                     st.markdown(f"**⏱ Analysis time:** `{elapsed*1000:.0f} ms`")
@@ -246,6 +257,15 @@ def main():
                 if out and out.exists():
                     st.success(f"✅ Video processed! Saved to `{out}`")
                     st.video(str(out))
+                    
+                    with open(out, "rb") as vfile:
+                        st.download_button(
+                            label="⬇️ Download Processed Video",
+                            data=vfile,
+                            file_name="facevision_processed.mp4",
+                            mime="video/mp4",
+                            use_container_width=True
+                        )
                 else:
                     st.error("Video processing failed.")
 

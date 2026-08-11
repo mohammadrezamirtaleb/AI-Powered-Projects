@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import time
+import concurrent.futures
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -88,18 +89,13 @@ class FaceAnalyzer:
     """
     Analyzes face attributes: emotion, age, gender, and race using DeepFace.
 
-    Uses a cooldown mechanism to prevent running expensive inference on every frame.
-    Results are cached between cooldown periods.
+    Uses a cooldown mechanism and a background thread to prevent running
+    expensive inference on every frame synchronously.
 
     Args:
         actions: List of analysis tasks to run. Options: "emotion", "age", "gender", "race".
         cooldown_seconds: Minimum seconds between full analyses per face ID.
         enforce_detection: Whether DeepFace should raise errors if no face found.
-
-    Example:
-        >>> analyzer = FaceAnalyzer(actions=["emotion", "age", "gender"])
-        >>> result = analyzer.analyze(face_crop, face_id=0)
-        >>> print(result.dominant_emotion, result.age, result.gender)
     """
 
     def __init__(
@@ -111,40 +107,18 @@ class FaceAnalyzer:
         self.actions = actions or ["emotion", "age", "gender"]
         self.cooldown_seconds = cooldown_seconds
         self.enforce_detection = enforce_detection
+        
         self._cache: Dict[int, AnalysisResult] = {}
         self._last_run: Dict[int, float] = {}
+        self._futures: Dict[int, concurrent.futures.Future] = {}
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
         if not _DEEPFACE_AVAILABLE:
             logger.error("DeepFace is not installed. Analysis disabled.")
 
-    def analyze(
-        self, face_image: np.ndarray, face_id: int = 0
-    ) -> AnalysisResult:
-        """
-        Analyze a cropped face image.
-
-        Args:
-            face_image: BGR face crop as NumPy array.
-            face_id: Unique ID to associate with this face for caching.
-
-        Returns:
-            AnalysisResult with predicted attributes.
-        """
-        if not _DEEPFACE_AVAILABLE:
-            return AnalysisResult()
-
-        if face_image is None or face_image.size == 0:
-            return AnalysisResult()
-
-        now = time.time()
-        last = self._last_run.get(face_id, 0)
-
-        # Return cached result within cooldown window
-        if (now - last) < self.cooldown_seconds and face_id in self._cache:
-            return self._cache[face_id]
-
+    def _run_deepface(self, face_image: np.ndarray, face_id: int) -> AnalysisResult:
+        """Worker function for DeepFace analysis."""
         try:
-            # DeepFace expects RGB
             rgb = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
             raw: List[Dict[str, Any]] = DeepFace.analyze(
                 img_path=rgb,
@@ -165,22 +139,55 @@ class FaceAnalyzer:
                 ),
                 race=data.get("dominant_race", "unknown"),
                 race_scores=data.get("race", {}),
-                timestamp=now,
+                timestamp=time.time(),
                 success=True,
             )
+            return result
         except Exception as exc:
             logger.debug("DeepFace analysis error for face %d: %s", face_id, exc)
-            result = self._cache.get(face_id, AnalysisResult(success=False))
+            return AnalysisResult(success=False)
 
-        self._cache[face_id] = result
-        self._last_run[face_id] = now
-        return result
+    def analyze(self, face_image: np.ndarray, face_id: int = 0) -> AnalysisResult:
+        """
+        Analyze a cropped face image.
+        Returns the cached result if available, and submits a background 
+        analysis task if the cooldown has expired.
+        """
+        if not _DEEPFACE_AVAILABLE:
+            return AnalysisResult()
+
+        if face_image is None or face_image.size == 0:
+            return AnalysisResult()
+
+        now = time.time()
+        last = self._last_run.get(face_id, 0)
+
+        # Check if the future is done, update cache
+        if face_id in self._futures and self._futures[face_id].done():
+            self._cache[face_id] = self._futures[face_id].result()
+            del self._futures[face_id]
+
+        # Return cached result within cooldown window
+        if (now - last) < self.cooldown_seconds:
+            return self._cache.get(face_id, AnalysisResult())
+
+        # If we are not already processing this face, start a new background task
+        if face_id not in self._futures:
+            self._futures[face_id] = self._executor.submit(self._run_deepface, face_image.copy(), face_id)
+            self._last_run[face_id] = now
+            
+        return self._cache.get(face_id, AnalysisResult())
 
     def clear_cache(self) -> None:
         """Clear all cached analysis results."""
         self._cache.clear()
         self._last_run.clear()
+        self._futures.clear()
 
     def get_cached(self, face_id: int) -> Optional[AnalysisResult]:
         """Return cached result for a face without triggering new analysis."""
         return self._cache.get(face_id)
+    
+    def __del__(self):
+        """Clean up the thread pool on deletion."""
+        self._executor.shutdown(wait=False)
