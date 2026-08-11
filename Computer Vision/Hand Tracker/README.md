@@ -90,6 +90,18 @@ Creates a stylized digital hand using:
 * Finger-tip highlighting
 * Hand skeleton connections
 
+### 🤖 Auto Model Download
+
+No need to manually download model files! The system automatically fetches the required `hand_landmarker.task` on first run.
+
+### 🎛 Command-Line Interface (CLI)
+
+Easily configure camera index, max hands, and smoothing via terminal arguments.
+
+### ⏱️ Real-Time FPS Counter
+
+Displays accurate frames-per-second to monitor tracking performance.
+
 ### Full-Screen Visualization
 
 Displays webcam feed and virtual hand output in a large side-by-side interface.
@@ -176,8 +188,16 @@ numpy
 
 ## ▶ Run Project
 
+Run with default settings:
+
 ```bash
 python hand_tracking.py
+```
+
+Run with custom arguments (CLI):
+
+```bash
+python hand_tracking.py --camera 0 --hands 2 --smoothing 0.7
 ```
 
 Press:

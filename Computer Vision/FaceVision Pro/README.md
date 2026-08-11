@@ -29,7 +29,7 @@
 | 🎯 **Face Detection** | OpenCV DNN (SSD ResNet) | Robust detection across angles and lighting |
 | 🗺️ **Facial Landmarks** | MediaPipe Face Mesh | 478-point landmark detection |
 | 👁️ **Blink Detection** | Eye Aspect Ratio (EAR) | Real-time blink counting |
-| 😀 **Emotion Analysis** | DeepFace | 7-class emotion classification |
+| 😀 **Emotion Analysis** | DeepFace (Async Threading) | 7-class emotion classification without dropping FPS |
 | 🎂 **Age Estimation** | DeepFace | Per-frame age prediction |
 | 🧑 **Gender Detection** | DeepFace | Gender classification with confidence |
 | 🧑‍🤝‍🧑 **Face Recognition** | dlib (128-d embeddings) | Identify enrolled people in real time |
@@ -184,6 +184,7 @@ Then open http://localhost:8501 in your browser.
 **Dashboard features:**
 - 📸 Upload images for instant analysis
 - 🎥 Upload video files for batch processing
+- ⬇️ Download processed results directly from the browser
 - Interactive sliders and toggles for all pipeline settings
 - Per-face breakdown panels with emotion probability bars
 - Head pose angle display
