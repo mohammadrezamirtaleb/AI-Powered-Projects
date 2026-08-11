@@ -1,5 +1,7 @@
 # AI-Powered Volume Controller
 
+![Banner](assets/banner.png)
+
 This project is a computer vision-based application that allows you to control your system's volume using simple hand gestures. By tracking the distance between your thumb and index finger in real-time, the application dynamically adjusts the master volume on your Windows machine.
 
 ## ✨ Features
