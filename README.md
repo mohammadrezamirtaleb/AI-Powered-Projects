@@ -1,10 +1,10 @@
 <div align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=00c8ff&height=250&section=header&text=AI%20Powered%20Projects&fontSize=70&fontAlignY=35&animation=twinkling&fontColor=ffffff" />
+  <img src="assets/banner_ai.jpg" alt="Futuristic AI Banner" style="border-radius: 15px; width: 100%;" />
 </div>
 
-<h3 align="center">
-  Building Intelligent Solutions for Real-World Challenges 🚀
-</h3>
+<div align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=800&size=45&pause=1000&color=00F0FF&center=true&vCenter=true&width=800&height=100&lines=AI-Powered+Projects;Intelligent+Solutions;Machine+Learning;Computer+Vision" alt="Typing SVG" />
+</div>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
