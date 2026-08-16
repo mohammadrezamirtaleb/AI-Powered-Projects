@@ -1,282 +1,48 @@
-# 🚀 AI-Powered Projects
+<div align="center">
+  <img src="assets/banner_ai.jpg" alt="Futuristic AI Banner" style="border-radius: 15px; width: 100%;" />
+</div>
+
+<div align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=800&size=45&pause=1000&color=00F0FF&center=true&vCenter=true&width=800&height=100&lines=AI-Powered+Projects;Intelligent+Solutions;Machine+Learning;Computer+Vision" alt="Typing SVG" />
+</div>
 
 <p align="center">
-  <img src="assets/banner.png" alt="AI-Powered Projects Banner">
-</p>
-
-<p align="center">
-  <strong>Building Intelligent Solutions for Real-World Challenges</strong>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.10+-blue" alt="Python">
-  <img src="https://img.shields.io/badge/AI-Machine%20Learning-green" alt="AI">
-  <img src="https://img.shields.io/badge/Deep%20Learning-Neural%20Networks-orange" alt="Deep Learning">
-  <img src="https://img.shields.io/badge/License-Apache%202.0-red" alt="License">
-  <img src="https://img.shields.io/badge/Status-Active-success" alt="Status">
+  <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/AI-Machine%20Learning-green?style=for-the-badge&logo=scikit-learn&logoColor=white" alt="AI">
+  <img src="https://img.shields.io/badge/Deep%20Learning-Neural%20Networks-orange?style=for-the-badge&logo=tensorflow&logoColor=white" alt="Deep Learning">
+  <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Status">
 </p>
 
 ---
 
 ## 📖 Overview
 
-Welcome to **AI-Powered Projects**, a curated collection of Artificial Intelligence, Machine Learning, Deep Learning, Data Science, Natural Language Processing, Computer Vision, and Industrial AI projects.
+Welcome to **AI-Powered Projects**, the central hub for my Artificial Intelligence, Machine Learning, and Computer Vision solutions. 
 
-This repository showcases practical implementations of AI technologies designed to solve real-world engineering, industrial, and business challenges. The projects range from classical machine learning solutions to modern transformer-based architectures, predictive maintenance systems, digital twins, and large language model applications.
+This `master` branch acts as the root gateway. Because different projects have vastly different dependencies and architectures, they are maintained in their own dedicated branches or sub-directories.
 
-Whether you are a student, researcher, data scientist, AI engineer, or industry professional, this repository aims to provide valuable resources, reusable code, and practical examples for learning and development.
-
----
-
-## 🎯 Repository Objectives
-
-1. Demonstrate real-world AI applications
-2. Share machine learning and deep learning projects
-3. Explore industrial AI use cases
-4. Showcase predictive analytics solutions
-5. Build end-to-end data science workflows
-6. Develop intelligent systems for engineering challenges
-7. Promote best practices in AI development
+> [!NOTE]
+> **To see the full list of active projects, source codes, and detailed folder structures, please switch to the `ai-powered-projects` branch.**
 
 ---
 
-## 📂 Repository Structure
+## 🚀 Quick Navigation
 
-```text
-AI-Powered-Projects (branch: ai-powered-projects)
-│
-├── Machine-Learning/
-│   ├── Regression/
-│   ├── Classification/
-│   ├── Clustering/
-│   └── Feature-Engineering/
-│
-├── Deep-Learning/
-│   ├── ANN/
-│   ├── CNN/
-│   ├── RNN/
-│   ├── LSTM/
-│   └── Transformers/
-│
-├── Reinforcement-Learning/
-│   ├── Q-Learning/
-│   ├── Deep-Q-Networks/
-│   ├── Policy-Gradient/
-│   └── PPO/
-│
-├── Computer-Vision/
-│   ├── Image-Classification/
-│   ├── Object-Detection/
-│   ├── Segmentation/
-│   └── Industrial-Inspection/
-│
-├── NLP/
-│   ├── Text-Classification/
-│   ├── Sentiment-Analysis/
-│   ├── Named-Entity-Recognition/
-│   └── Chatbots/
-│
-├── LLMs-and-VLMs/
-│   ├── Prompt-Engineering/
-│   ├── RAG/
-│   ├── Fine-Tuning/
-│   ├── Agents/
-│   ├── LangChain/
-│   └── Multimodal-AI/
-│
-├── Time-Series/
-│   ├── Forecasting/
-│   ├── Anomaly-Detection/
-│   └── Predictive-Analytics/
-│
-├── Predictive-Maintenance/
-│   ├── Rotating-Equipment/
-│   ├── Pumps/
-│   ├── Compressors/
-│   └── Turbines/
-│
-├── Data-Science/
-│   ├── EDA/
-│   ├── Statistics/
-│   ├── Data-Visualization/
-│   └── Feature-Selection/
-│
-├── docs/
-│   ├── project-index.md
-│   ├── roadmap.md
-│   └── contribution-guide.md
-│
-├── assets/
-│   ├── banner.png
-│   ├── architecture/
-│   └── screenshots/
-│
-├── README.md
-├── requirements.txt
-└── LICENSE
-```
+- 👁️ **Computer Vision:** Face trackers, gesture controls, and optical recognition.
+- 🧠 **Machine Learning:** Predictive analytics and industrial fault detection.
+- 💬 **NLP & LLMs:** RAG systems, AI agents, and conversational models.
 
----
-
-## 🚀 Featured Domains
-
-### 🤖 Machine Learning
-Regression · Classification · Clustering · Ensemble Learning · Anomaly Detection · Feature Engineering
-
-### 🧠 Deep Learning
-Artificial Neural Networks (ANNs) · Convolutional Neural Networks (CNNs) · Recurrent Neural Networks (RNNs) · LSTM Networks · Autoencoders · Generative Models
-
-### 💬 Natural Language Processing (NLP)
-Text Classification · Named Entity Recognition · Sentiment Analysis · Topic Modeling · Question Answering · Text Summarization
-
-### 🔥 Large Language Models (LLMs)
-
-| Models & Architectures | Techniques |
-|------------------------|------------|
-| Transformer Architectures | Retrieval-Augmented Generation (RAG) |
-| BERT · RoBERTa · T5 | Fine-Tuning |
-| GPT Models · Llama · Mistral | Prompt Engineering |
-| Gemma · Qwen | Multi-Agent Systems |
-
-### 👁️ Computer Vision
-Image Classification · Object Detection · Image Segmentation · Face Recognition · OCR Systems
-
-### 📈 Time Series Analytics
-Demand Forecasting · Predictive Analytics · Sensor Data Modeling · Industrial Process Forecasting
-
-### 🏭 Industrial AI
-Predictive Maintenance · Soft Sensors · Digital Twins · Process Optimization · Fault Detection & Diagnosis · Root Cause Analysis · Asset Health Monitoring
-
----
-
-## 🛠️ Technologies & Tools
-
-### Programming & Development
-`Python` · `Jupyter Notebook` · `Git` · `GitHub`
-
-### Data Processing & Analysis
-`NumPy` · `Pandas` · `SciPy` · `Polars`
-
-### Machine Learning
-`Scikit-Learn` · `XGBoost` · `LightGBM` · `CatBoost`
-
-### Deep Learning
-`TensorFlow` · `Keras` · `PyTorch`
-
-### Natural Language Processing
-`NLTK` · `spaCy` · `Gensim` · `Hugging Face Transformers` · `Sentence Transformers` · `Tokenizers`
-
-### Large Language Models
-`BERT` · `RoBERTa` · `DistilBERT` · `ALBERT` · `DeBERTa` · `T5` · `FLAN-T5` · `GPT Models` · `Llama` · `Mistral` · `Gemma` · `Qwen`
-
-### Computer Vision
-`OpenCV` · `YOLO` · `TorchVision` · `Detectron2` · `Albumentations`
-
-### Generative AI & RAG
-`LangChain` · `LangGraph` · `LlamaIndex` · `FAISS` · `ChromaDB`
-
-### Data Visualization
-`Matplotlib` · `Seaborn` · `Plotly` · `Bokeh`
-
-### MLOps & Deployment
-`FastAPI` · `Flask` · `Streamlit` · `Docker` · `MLflow` · `DVC`
-
-### Databases
-`SQLite` · `PostgreSQL` · `MongoDB`
-
-### Cloud Platforms
-`AWS` · `Microsoft Azure` · `Google Cloud Platform (GCP)`
-
----
-
-## 📊 Project Standards
-
-Each project should include:
-
-- Project Description
-- Problem Statement
-- Dataset Information
-- Exploratory Data Analysis (EDA)
-- Data Preprocessing
-- Feature Engineering
-- Model Development
-- Hyperparameter Tuning
-- Evaluation Metrics
-- Results & Insights
-- Future Improvements
-- Deployment (if applicable)
-
----
-
-## 🚀 Getting Started
-
-Clone the repository:
-
+To explore these, switch your branch:
 ```bash
-git clone https://github.com/your-username/AI-Powered-Projects.git
-cd AI-Powered-Projects
+git checkout ai-powered-projects
 ```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Run notebooks or project scripts according to the documentation provided within each project folder.
-
----
-
-## 📚 Learning Resources
-
-This repository covers concepts related to:
-
-Machine Learning · Deep Learning · Natural Language Processing · Computer Vision · Transformer Architectures · Large Language Models · MLOps · Data Engineering · Industrial AI · Digital Twins · Predictive Maintenance
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome.
-
-If you would like to contribute:
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push the branch
-5. Open a Pull Request
-
-Please ensure that your code follows best practices and includes appropriate documentation.
-
----
-
-## ⭐ Support
-
-If you find this repository useful, consider giving it a ⭐ Star.
-
-Your support helps improve the repository and encourages future development.
 
 ---
 
 ## 📜 License
 
-This project is licensed under the Apache License 2.0.
+Distributed under the MIT License. See `LICENSE` for more information.
 
-See the LICENSE file for details.
-
----
-
-## 👨‍💻 Author
-
-Mohammad Reza Mirtaleb
-
-MSC at Petroleum University of Technology, Abadan Faculty
-
-AI Engineer | Machine Learning & Deep Learning Engineer | Data Scientist | NLP Expert (LLMs and VLMs) | RAG and Multi-Agent Systems Developer
-
-Building intelligent solutions for real-world challenges.
-
----
-
-### 🌟 Building Intelligent Solutions with Artificial Intelligence
+<div align="center">
+  <i>Developed with ❤️ for the AI Community.</i>
+</div>
