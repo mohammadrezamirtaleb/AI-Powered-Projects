@@ -1,0 +1,323 @@
+/* ==========================================================================
+   J.A.R.V.I.S. MARK-85 HUD CORE DESIGN SYSTEM
+   Stark Industries Holographic Cybernetic Interface
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@400;500;600;700&family=Vazirmatn:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --bg-base: #03060f;
+    --bg-darker: #020409;
+    --bg-panel: rgba(6, 14, 28, 0.75);
+    --bg-panel-hover: rgba(10, 22, 45, 0.85);
+    --bg-glass: rgba(0, 240, 255, 0.03);
+
+    --stark-cyan: #00f0ff;
+    --stark-cyan-glow: rgba(0, 240, 255, 0.4);
+    --stark-cyan-soft: rgba(0, 240, 255, 0.15);
+    --stark-blue: #0077ff;
+    --stark-gold: #ffb700;
+    --stark-gold-glow: rgba(255, 183, 0, 0.45);
+    --stark-red: #ff2a55;
+    --stark-red-glow: rgba(255, 42, 85, 0.5);
+    --stark-green: #00ff88;
+    --text-primary: #e6f8ff;
+    --text-secondary: #7f9cb8;
+    --text-dim: #3e5a75;
+
+    --border-glow: 1px solid rgba(0, 240, 255, 0.25);
+    --border-glow-active: 1px solid rgba(0, 240, 255, 0.7);
+    --box-glow: 0 0 15px rgba(0, 240, 255, 0.15), inset 0 0 15px rgba(0, 240, 255, 0.05);
+
+    --font-sci-fi: 'Orbitron', -apple-system, sans-serif;
+    --font-telemetry: 'Rajdhani', monospace, sans-serif;
+    --font-body: 'Vazirmatn', 'Inter', -apple-system, sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--stark-cyan) rgba(2, 6, 15, 0.5);
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(2, 6, 15, 0.8);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--stark-cyan);
+    border-radius: 3px;
+    box-shadow: 0 0 6px var(--stark-cyan);
+}
+
+html {
+    background-color: var(--bg-base);
+    background: #03060f;
+    height: 100%;
+}
+
+body {
+    background-color: var(--bg-base);
+    background: #03060f;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+    user-select: none;
+}
+
+/* Dynamic Holographic Background & Scanlines */
+.hud-background {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: 
+        radial-gradient(circle at 50% 30%, rgba(0, 119, 255, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 10% 90%, rgba(0, 240, 255, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 90% 90%, rgba(255, 183, 0, 0.05) 0%, transparent 50%),
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+}
+
+.hud-scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0, 240, 255, 0.02) 50%,
+        rgba(0, 240, 255, 0.02)
+    );
+    background-size: 100% 4px;
+    opacity: 0.8;
+}
+
+/* Master HUD Layout Container */
+.hud-container {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    padding: 12px 16px;
+    gap: 12px;
+}
+
+/* ==========================================================================
+   TOP STARK BANNER
+   ========================================================================== */
+.hud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 18px;
+    background: var(--bg-panel);
+    border: var(--border-glow);
+    border-radius: 8px;
+    box-shadow: var(--box-glow);
+    backdrop-filter: blur(12px);
+    position: relative;
+}
+
+.hud-header::before, .hud-header::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-color: var(--stark-cyan);
+    border-style: solid;
+}
+.hud-header::before {
+    top: -2px; left: -2px;
+    border-width: 2px 0 0 2px;
+}
+.hud-header::after {
+    bottom: -2px; right: -2px;
+    border-width: 0 2px 2px 0;
+}
+
+.brand-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-logo-glow {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--stark-cyan);
+    box-shadow: 0 0 12px var(--stark-cyan), inset 0 0 8px var(--stark-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    animation: pulseLogo 3s infinite ease-in-out;
+}
+
+.brand-logo-core {
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #fff;
+}
+
+.brand-title {
+    font-family: var(--font-sci-fi);
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #fff;
+    text-shadow: 0 0 10px var(--stark-cyan);
+}
+
+.brand-subtitle {
+    font-family: var(--font-telemetry);
+    font-size: 0.75rem;
+    color: var(--stark-gold);
+    letter-spacing: 1.5px;
+    margin-top: -2px;
+}
+
+.status-badges {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--font-telemetry);
+    font-size: 0.85rem;
+}
+
+.badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--stark-green);
+    box-shadow: 0 0 8px var(--stark-green);
+    animation: blinkDot 1.5s infinite alternate;
+}
+
+.badge-gold {
+    color: var(--stark-gold);
+    border-color: rgba(255, 183, 0, 0.3);
+    background: rgba(255, 183, 0, 0.08);
+}
+
+.badge-gold .badge-dot {
+    background: var(--stark-gold);
+    box-shadow: 0 0 8px var(--stark-gold);
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hud-btn-icon {
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    color: var(--stark-cyan);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-telemetry);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.hud-btn-icon:hover {
+    background: var(--stark-cyan);
+    color: #000;
+    box-shadow: 0 0 12px var(--stark-cyan);
+    transform: translateY(-1px);
+}
+
+.hud-btn-icon.active {
+    background: rgba(0, 240, 255, 0.25);
+    border-color: var(--stark-cyan);
+    box-shadow: 0 0 10px var(--stark-cyan);
+}
+
+/* ==========================================================================
+   MAIN 3-COLUMN WORKSPACE
+   ========================================================================== */
+.hud-workspace {
+    display: grid;
+    grid-template-columns: 280px 1fr 340px;
+    gap: 12px;
+    flex: 1;
+    min-height: 0; /* Important for scroll */
+}
+
+/* Common Card & Panel Base */
+.hud-panel {
+    background: var(--bg-panel);
+    border: var(--border-glow);
+    border-radius: 8px;
+    box-shadow: var(--box-glow);
+    backdrop-filter: blur(16px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(0, 240, 255, 0.05);
+    border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+    font-family: var(--font-sci-fi);
+    font-size: 0.85rem;
+    letter-spacing: 1.5px;
+    color: var(--stark-cyan);
+}
+
+.panel-body {
+    padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Keyframes */
+@keyframes pulseLogo {
+    0%, 100% { box-shadow: 0 0 10px var(--stark-cyan), inset 0 0 6px var(--stark-cyan); }
+    50% { box-shadow: 0 0 20px var(--stark-cyan), inset 0 0 12px var(--stark-cyan); }
+}
+
+@keyframes blinkDot {
+    0% { opacity: 0.4; }
+    100% { opacity: 1; }
+}

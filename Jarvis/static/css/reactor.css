@@ -1,0 +1,279 @@
+/* ==========================================================================
+   J.A.R.V.I.S. ARC REACTOR HOLOGRAPHIC STYLES
+   Stark Industries Mark-85 Core
+   ========================================================================== */
+
+.arc-reactor-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 8px;
+    background: radial-gradient(circle, rgba(0, 240, 255, 0.08) 0%, rgba(3, 6, 15, 0.4) 70%);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    box-shadow: inset 0 0 30px rgba(0, 240, 255, 0.08);
+    overflow: hidden;
+}
+
+.reactor-canvas-container {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+#arcReactorCanvas {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.6));
+    transition: filter 0.3s ease;
+}
+
+.reactor-canvas-container:hover #arcReactorCanvas {
+    filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.9));
+}
+
+.reactor-canvas-container.active-thinking #arcReactorCanvas {
+    filter: drop-shadow(0 0 24px rgba(255, 183, 0, 0.9));
+}
+
+.reactor-canvas-container.active-threat #arcReactorCanvas {
+    filter: drop-shadow(0 0 24px rgba(255, 42, 85, 0.9));
+}
+
+/* Reactor HUD Telemetry Overlays */
+.reactor-telemetry {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 14px 2px;
+    font-family: var(--font-telemetry);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.reactor-status-text {
+    font-family: var(--font-sci-fi);
+    font-size: 0.75rem;
+    color: var(--stark-cyan);
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px var(--stark-cyan);
+}
+
+.reactor-power-meter {
+    width: 90%;
+    height: 4px;
+    background: rgba(0, 240, 255, 0.1);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.reactor-power-fill {
+    height: 100%;
+    width: 98.4%;
+    background: linear-gradient(90deg, var(--stark-blue), var(--stark-cyan), #fff);
+    box-shadow: 0 0 8px var(--stark-cyan);
+    transition: width 0.5s ease;
+}
+
+/* Reactor Mode Indicator Pill */
+.reactor-mode-pill {
+    margin-top: 6px;
+    font-family: var(--font-telemetry);
+    font-size: 0.75rem;
+    padding: 2px 10px;
+    background: rgba(0, 240, 255, 0.12);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 12px;
+    color: var(--stark-cyan);
+    letter-spacing: 1px;
+}
+
+/* ==========================================================================
+   FULLSCREEN HOLOGRAPHIC BOOT OVERLAY & HERO ARC REACTOR SEQUENCE
+   ========================================================================== */
+.boot-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: radial-gradient(circle at center, #06112c 0%, #020409 85%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s ease, filter 0.8s ease;
+    overflow: hidden;
+    transform: translate3d(0, 0, 0);
+    will-change: opacity, transform, filter;
+    backface-visibility: hidden;
+}
+
+.boot-overlay.boot-completed {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(1.04) translate3d(0, 0, 0);
+    filter: blur(4px);
+}
+
+.boot-glow-aura {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 240, 255, 0.18) 0%, rgba(0, 114, 255, 0.05) 50%, transparent 70%);
+    animation: bootPulseAura 2s ease-in-out infinite alternate;
+    pointer-events: none;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, opacity;
+}
+
+@keyframes bootPulseAura {
+    0% { transform: scale(0.9) translate3d(0, 0, 0); opacity: 0.6; }
+    100% { transform: scale(1.15) translate3d(0, 0, 0); opacity: 1; }
+}
+
+.boot-reactor-container {
+    position: relative;
+    width: 340px;
+    height: 340px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+}
+
+.boot-core-glow {
+    position: absolute;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffffff 0%, rgba(0, 240, 255, 0.7) 40%, rgba(0, 114, 255, 0.3) 70%, transparent 100%);
+    box-shadow: 0 0 40px rgba(0, 240, 255, 0.8), 0 0 70px rgba(0, 114, 255, 0.5);
+    animation: corePulseInstant 1.4s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 1;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, opacity;
+}
+
+@keyframes corePulseInstant {
+    0% { transform: scale(0.92) translate3d(0, 0, 0); opacity: 0.8; }
+    100% { transform: scale(1.08) translate3d(0, 0, 0); opacity: 1; }
+}
+
+.boot-hud-ring-outer {
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    border: 2px dashed rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+    animation: bootRotateCW 12s linear infinite;
+    pointer-events: none;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+}
+
+.boot-hud-ring-inner {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 1px dotted rgba(255, 183, 0, 0.5);
+    animation: bootRotateCCW 8s linear infinite;
+    pointer-events: none;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+}
+
+@keyframes bootRotateCW {
+    from { transform: rotate(0deg) translate3d(0, 0, 0); }
+    to { transform: rotate(360deg) translate3d(0, 0, 0); }
+}
+
+@keyframes bootRotateCCW {
+    from { transform: rotate(360deg) translate3d(0, 0, 0); }
+    to { transform: rotate(0deg) translate3d(0, 0, 0); }
+}
+
+#heroReactorCanvas {
+    width: 320px;
+    height: 320px;
+    filter: drop-shadow(0 0 30px rgba(0, 240, 255, 0.95)) drop-shadow(0 0 60px rgba(0, 114, 255, 0.6));
+    animation: heroGlowPulse 2.5s ease-in-out infinite alternate;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, filter;
+    backface-visibility: hidden;
+}
+
+@keyframes heroGlowPulse {
+    0% { filter: drop-shadow(0 0 25px rgba(0, 240, 255, 0.8)) drop-shadow(0 0 45px rgba(0, 114, 255, 0.4)); }
+    100% { filter: drop-shadow(0 0 40px rgba(0, 240, 255, 1)) drop-shadow(0 0 80px rgba(0, 114, 255, 0.8)); }
+}
+
+.boot-info-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+    margin-top: 20px;
+}
+
+.boot-title-gold {
+    font-family: var(--font-sci-fi);
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 5px;
+    color: var(--stark-gold);
+    text-shadow: 0 0 20px rgba(255, 183, 0, 0.7), 0 0 40px rgba(255, 183, 0, 0.4);
+}
+
+.boot-subtitle-cyan {
+    font-family: var(--font-telemetry);
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    color: var(--stark-cyan);
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+    margin-top: 6px;
+}
+
+.boot-progress-bar {
+    width: 340px;
+    height: 4px;
+    background: rgba(0, 240, 255, 0.15);
+    border-radius: 2px;
+    margin-top: 16px;
+    overflow: hidden;
+    box-shadow: inset 0 0 6px rgba(0, 240, 255, 0.2);
+}
+
+.boot-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--stark-blue), var(--stark-cyan), #ffffff);
+    box-shadow: 0 0 12px var(--stark-cyan);
+    transition: width 2.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.boot-subsystems-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 14px;
+    font-family: var(--font-telemetry);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.boot-sub-item {
+    padding: 3px 8px;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 6px;
+    color: var(--stark-cyan);
+}

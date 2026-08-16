@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. // Stark Industries Mark-85 Core</title>
+    <link rel="stylesheet" href="css/hud_core.css">
+    <link rel="stylesheet" href="css/reactor.css">
+    <link rel="stylesheet" href="css/panels.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='none' stroke='%2300f0ff' stroke-width='8'/><circle cx='50' cy='50' r='20' fill='%2300f0ff'/></svg>">
+</head>
+<body>
+    <!-- Fullscreen Holographic Arc Reactor Boot Sequence -->
+    <div id="starkBootOverlay" class="boot-overlay">
+        <div class="boot-glow-aura"></div>
+        <div class="boot-reactor-container">
+            <div class="boot-core-glow"></div>
+            <div class="boot-hud-ring-outer"></div>
+            <div class="boot-hud-ring-inner"></div>
+            <canvas id="heroReactorCanvas" width="320" height="320"></canvas>
+        </div>
+        <div class="boot-info-block">
+            <div class="boot-title-gold">J.A.R.V.I.S. // MARK LXXXV</div>
+            <div class="boot-subtitle-cyan" id="bootStatusText">CALIBRATING ARC REACTOR & QUANTUM NEURAL PATHWAYS...</div>
+            <div class="boot-progress-bar">
+                <div class="boot-progress-fill" id="bootProgressFill"></div>
+            </div>
+            <div class="boot-subsystems-row">
+                <span class="boot-sub-item">⚡ CORE: 100%</span>
+                <span class="boot-sub-item">🌐 NEURAL LINK: SYNCED</span>
+                <span class="boot-sub-item">🔬 VISION: ARMED</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holographic Background Layers -->
+    <div class="hud-background"></div>
+    <div class="hud-scanlines"></div>
+
+    <!-- Master HUD Interface -->
+    <div id="hologramContainer" style="position:fixed; inset:0; z-index:9000; pointer-events:none;"></div>
+    
+    <div class="hud-container">
+        <!-- TOP STARK BANNER -->
+        <header class="hud-header">
+            <div class="brand-section">
+                <div class="brand-logo-glow">
+                    <div class="brand-logo-core"></div>
+                </div>
+                <div>
+                    <h1 class="brand-title">J.A.R.V.I.S.</h1>
+                    <div class="brand-subtitle">STARK INDUSTRIES // MARK LXXXV OS</div>
+                </div>
+            </div>
+
+            <div class="status-badges">
+                <!-- Neural Model Selector Dropdown -->
+                <div class="badge" style="padding: 2px 6px;">
+                    <span class="badge-dot" id="providerDot"></span>
+                    <span style="font-size:0.75rem; margin-right:4px;">BRAIN:</span>
+                    <select id="headerModelSelect" class="model-dropdown-select">
+                        <option value="openrouter|google/gemma-4-26b-a4b-it:free" selected>🌐 OpenRouter: Gemma-4 26B (Free)</option>
+                        <option value="openrouter|poolside/laguna-s-2.1:free">🌐 OpenRouter: Laguna 2.1 (Free)</option>
+                        <option value="openrouter|cohere/north-mini-code:free">🌐 OpenRouter: Cohere North Mini (Free)</option>
+                        <option value="ollama|qwen3.5:4b">⚡ Ollama: Qwen3.5 4B (Local)</option>
+                    </select>
+                </div>
+
+                <div class="badge badge-gold">
+                    <span class="badge-dot"></span>
+                    <span>VISION: <strong style="color:var(--stark-gold);">GLM-OCR</strong></span>
+                </div>
+                <div class="badge">
+                    <span style="color:var(--stark-cyan);">SEC: ENCRYPTED</span>
+                </div>
+            </div>
+
+            <div class="header-controls">
+                <button id="fullscreenToggleBtn" class="hud-btn-icon" title="Toggle Fullscreen Mode (F11)">
+                    ⛶ FULLSCREEN
+                </button>
+                <button id="configModalOpenBtn" class="hud-btn-icon" title="Configure AI Providers & API Keys">
+                    ⚙️ CONFIG
+                </button>
+                <button id="voiceToggleBtn" class="hud-btn-icon active" title="Toggle Spoken Voice Output">
+                    🎙️ VOICE: ON
+                </button>
+                <button id="sfxToggleBtn" class="hud-btn-icon active" title="Toggle Sci-Fi Sound Effects">
+                    🔊 SFX: ON
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN 3-COLUMN WORKSPACE -->
+        <main class="hud-workspace">
+            <!-- LEFT COLUMN: ARC REACTOR & TELEMETRY VITALS -->
+            <aside class="hud-panel">
+                <div class="panel-header">
+                    <span>⚡ CORE TELEMETRY</span>
+                    <span style="font-size:0.7rem; color:var(--stark-gold);">MK-85</span>
+                </div>
+                <div class="panel-body">
+                    <!-- Central Holographic Arc Reactor Core -->
+                    <div class="arc-reactor-wrapper">
+                        <div class="reactor-canvas-container" id="reactorContainer">
+                            <canvas id="arcReactorCanvas"></canvas>
+                        </div>
+                        <div class="reactor-telemetry">
+                            <span class="reactor-status-text">ARC CORE: NOMINAL</span>
+                            <span style="color:var(--stark-gold); font-weight:700;">12.4 THz</span>
+                        </div>
+                        <div class="reactor-power-meter">
+                            <div class="reactor-power-fill"></div>
+                        </div>
+                        <div class="reactor-mode-pill" id="hudActiveProviderPill">LINK: OPENROUTER // GEMMA 26B</div>
+                    </div>
+
+                    <!-- Hardware Telemetry Gauges -->
+                    <div class="telemetry-grid">
+                        <div class="gauge-card">
+                            <div class="gauge-svg-container">
+                                <svg class="gauge-svg" width="68" height="68">
+                                    <circle class="gauge-bg" cx="34" cy="34" r="30"></circle>
+                                    <circle class="gauge-progress" id="cpuProgress" cx="34" cy="34" r="30"></circle>
+                                </svg>
+                                <div class="gauge-value" id="cpuVal">0%</div>
+                            </div>
+                            <div class="gauge-label">CPU LOAD</div>
+                        </div>
+
+                        <div class="gauge-card">
+                            <div class="gauge-svg-container">
+                                <svg class="gauge-svg" width="68" height="68">
+                                    <circle class="gauge-bg" cx="34" cy="34" r="30"></circle>
+                                    <circle class="gauge-progress" id="ramProgress" cx="34" cy="34" r="30"></circle>
+                                </svg>
+                                <div class="gauge-value" id="ramVal">0%</div>
+                            </div>
+                            <div class="gauge-label">MEMORY</div>
+                        </div>
+
+                        <div class="gauge-card">
+                            <div class="gauge-svg-container">
+                                <svg class="gauge-svg" width="68" height="68">
+                                    <circle class="gauge-bg" cx="34" cy="34" r="30"></circle>
+                                    <circle class="gauge-progress" id="diskProgress" cx="34" cy="34" r="30"></circle>
+                                </svg>
+                                <div class="gauge-value" id="diskVal">0%</div>
+                            </div>
+                            <div class="gauge-label">STORAGE</div>
+                        </div>
+
+                        <div class="gauge-card">
+                            <div class="gauge-svg-container">
+                                <svg class="gauge-svg" width="68" height="68">
+                                    <circle class="gauge-bg" cx="34" cy="34" r="30"></circle>
+                                    <circle class="gauge-progress" id="batProgress" cx="34" cy="34" r="30"></circle>
+                                </svg>
+                                <div class="gauge-value" id="batVal">100%</div>
+                            </div>
+                            <div class="gauge-label">POWER</div>
+                        </div>
+                    </div>
+
+                    <!-- System Specs Card -->
+                    <div class="system-specs-card">
+                        <div class="spec-row">
+                            <span>HOST:</span>
+                            <span class="spec-val" id="specHost">STARK-PC</span>
+                        </div>
+                        <div class="spec-row">
+                            <span>OS:</span>
+                            <span class="spec-val" id="specOS">Windows 11</span>
+                        </div>
+                        <div class="spec-row">
+                            <span>UPTIME:</span>
+                            <span class="spec-val" id="specUptime">0h 0m</span>
+                        </div>
+                        <div class="spec-row">
+                            <span>NET I/O:</span>
+                            <span class="spec-val" id="specNet">↑0M ↓0M</span>
+                        </div>
+                    </div>
+
+                    <!-- Quick Protocols Trigger List -->
+                    <div style="font-family:var(--font-sci-fi); font-size:0.75rem; color:var(--stark-cyan); letter-spacing:1px; margin-top:2px;">
+                        DIRECT PROTOCOLS
+                    </div>
+                    <div class="quick-protocol-list">
+                        <button class="quick-proto-btn" data-proto="diagnostics">
+                            <span>⚡</span> <span>Diagnostic Sweep</span>
+                        </button>
+                        <button class="quick-proto-btn" data-proto="threat_scan">
+                            <span>🛡️</span> <span>Threat & Anomaly Scan</span>
+                        </button>
+                        <button class="quick-proto-btn" data-proto="deep_ocr">
+                            <span>👁️</span> <span>Desktop Screenshot & OCR</span>
+                        </button>
+                        <button class="quick-proto-btn" data-proto="clean_slate">
+                            <span>🧹</span> <span>Clean Slate Protocol</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- CENTER COLUMN: NEURAL COMMUNICATION & PROMPT MATRIX -->
+            <section class="hud-panel" style="grid-column: 2;">
+                <div class="panel-header">
+                    <span>📡 NEURAL COMMUNICATION MATRIX</span>
+                    <span id="centerLinkStatus" style="font-size:0.7rem; color:var(--stark-cyan);">STREAMING LINK ACTIVE</span>
+                </div>
+
+                <!-- Chat Feed Stream -->
+                <div class="chat-stream-container" id="chatStream">
+                    <!-- Messages will be injected here dynamically -->
+                </div>
+
+                <!-- Quick Prompt Chips -->
+                <div class="quick-prompt-chips">
+                    <button class="chip-btn" data-prompt="وضعیت کامل سخت‌افزار و زیرسیستم‌های سیستم را بررسی و گزارش کن.">📊 بررسی سیستم</button>
+                    <button class="chip-btn" data-prompt="یک اسکرین شات از صفحه بگیر و بگو الان چی روی دسکتاپ بازه؟">📸 اسکرین‌شات و تحلیل</button>
+                    <button class="chip-btn" data-prompt="ماشین‌حساب ویندوز را برای انجام محاسبات باز کن.">🚀 باز کردن ماشین‌حساب</button>
+                    <button class="chip-btn" data-prompt="پروتکل بررسی ناهنجاری‌ها و تهدیدات منابع (Threat Scan) را اجرا کن.">🛡️ پروتکل امنیت</button>
+                    <button class="chip-btn" data-prompt="How is the Mark-85 armor integrity and reactor plasma levels?">🇬🇧 English Telemetry</button>
+                </div>
+
+                <!-- Prompt Console Input -->
+                <div class="prompt-console-wrapper">
+                    <div class="prompt-input-row">
+                        <input type="text" id="chatPromptInput" class="hud-input" placeholder="دستور، سوال یا پرامپت خود را برای جارویس وارد کنید..." autocomplete="off">
+                        <button id="chatSendBtn" class="hud-send-btn">
+                            <span>TRANSMIT</span>
+                            <span>▶</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN: MULTI-TAB WORKSPACE (OCR LAB / PROTOCOLS / TERMINAL / VAULT) -->
+            <aside class="hud-panel">
+                <nav class="right-tab-bar">
+                    <button class="tab-btn active" data-tab="tabOcr">🔬 OCR LAB</button>
+                    <button class="tab-btn" data-tab="tabProtocols">⚡ PROTOCOLS</button>
+                    <button class="tab-btn" data-tab="tabTerminal">💻 TERMINAL</button>
+                    <button class="tab-btn" data-tab="tabVault">🧠 VAULT</button>
+                    <button class="tab-btn" data-tab="tabChats">💬 CHATS</button>
+                </nav>
+
+                <!-- TAB 1: OCR & VISION LAB -->
+                <div id="tabOcr" class="tab-content active">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-family:var(--font-sci-fi); font-size:0.78rem; color:var(--stark-cyan);">GLM-OCR OPTICAL LAB</span>
+                        <button id="ocrScreenCaptureBtn" class="hud-btn-icon" style="font-size:0.75rem; padding:3px 8px;">
+                            📸 SCREENSHOT
+                        </button>
+                    </div>
+
+                    <!-- Dropzone -->
+                    <div class="ocr-dropzone" id="ocrDropzone">
+                        <input type="file" id="ocrFileInput" accept="image/*" style="display:none;">
+                        <img id="ocrPreview" class="ocr-preview-img" style="display:none;" alt="Preview">
+                        <div class="dropzone-text">
+                            <div style="font-size:1.4rem; color:var(--stark-cyan);">📂</div>
+                            <div style="font-size:0.8rem; color:#fff; font-weight:600;">DRAG & DROP IMAGE HERE</div>
+                            <div style="font-size:0.7rem; color:var(--text-secondary);">یا تصویر را Paste کنید (Ctrl+V)</div>
+                        </div>
+                    </div>
+
+                    <!-- Model selector -->
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <span style="font-family:var(--font-telemetry); font-size:0.75rem; color:var(--text-secondary);">MODEL:</span>
+                        <select id="ocrModelSelect" style="background:#02050e; border:1px solid rgba(0,240,255,0.3); color:var(--stark-cyan); border-radius:4px; font-family:var(--font-telemetry); font-size:0.8rem; padding:4px; flex:1;">
+                            <option value="glm-ocr:latest">GLM-OCR (Ollama 1.1B)</option>
+                            <option value="qwen3.5:4b">Qwen3.5-4B Vision</option>
+                        </select>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div style="display:flex; gap:6px;">
+                        <button id="ocrScanBtn" class="hud-btn-icon" style="flex:1; justify-content:center; padding:6px 0;" disabled>
+                            ⚡ EXTRACT OCR
+                        </button>
+                        <button id="ocrSendPromptBtn" class="hud-btn-icon" style="display:none; padding:6px 10px;" title="Send Extracted Text to JARVIS Prompt">
+                            💬 ASK JARVIS
+                        </button>
+                        <button id="ocrCopyBtn" class="hud-btn-icon" style="display:none; padding:6px 8px;" title="Copy Extracted Markdown">
+                            📋 COPY
+                        </button>
+                    </div>
+
+                    <!-- OCR Result Box -->
+                    <div class="ocr-result-box" id="ocrResultBox">// Optical character tensors standing by. Drop or paste any document/code image...</div>
+                </div>
+
+                <!-- TAB 2: PROTOCOLS MATRIX -->
+                <div id="tabProtocols" class="tab-content">
+                    <div style="font-family:var(--font-sci-fi); font-size:0.78rem; color:var(--stark-cyan); margin-bottom:4px;">
+                        STARK PROTOCOL DIRECTIVES
+                    </div>
+                    <div id="protocolMatrixGrid" style="display:flex; flex-direction:column; gap:8px;">
+                        <!-- Injected via protocols.js -->
+                    </div>
+                </div>
+
+                <!-- TAB 3: SCI-FI TERMINAL -->
+                <div id="tabTerminal" class="tab-content">
+                    <div style="font-family:var(--font-sci-fi); font-size:0.78rem; color:var(--stark-cyan); margin-bottom:4px;">
+                        MARK-85 COMMAND TERMINAL
+                    </div>
+                    <div class="terminal-output" id="terminalOutput"></div>
+                    <div class="terminal-input-row">
+                        <span class="terminal-prompt-symbol">JARVIS&gt;</span>
+                        <input type="text" id="terminalInput" class="hud-input" style="padding:6px 8px; font-size:0.85rem; font-family:var(--font-telemetry);" placeholder="Enter system command (e.g. dir, ping)...">
+                    </div>
+                </div>
+
+                <!-- TAB 4: NEURAL MEMORY VAULT -->
+                <div id="tabVault" class="tab-content">
+                    <div style="font-family:var(--font-sci-fi); font-size:0.78rem; color:var(--stark-cyan);">
+                        NEURAL MEMORY & DIRECTIVES
+                    </div>
+                    <!-- Add Note Section -->
+                    <div style="margin-top: 15px; border-top:1px solid rgba(0, 255, 255, 0.2); padding-top:15px;">
+                        <span style="font-size:0.75rem; color:var(--stark-cyan); display:block; margin-bottom:5px;">ADD NEURAL NOTE</span>
+                        <input type="text" id="noteTitleInput" class="hud-input" placeholder="Note Title" style="margin-bottom:8px;">
+                        <textarea id="noteContentInput" class="hud-input" placeholder="Note Content..." style="height: 60px; margin-bottom:8px; resize:none;"></textarea>
+                        <button id="saveNoteBtn" class="hud-btn-outline" style="width:100%;">💾 STORE TO VAULT</button>
+                    </div>
+                    <!-- Notes List -->
+                    <div id="vaultNotesList" style="display:flex; flex-direction:column; gap:6px; flex:1; overflow-y:auto;"></div>
+                </div>
+
+                <!-- TAB 5: CHAT HISTORY -->
+                <div id="tabChats" class="tab-content" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                        <span style="font-family:var(--font-sci-fi); font-size:0.78rem; color:var(--stark-cyan);">CONVERSATION LOGS</span>
+                        <button id="newChatBtn" class="hud-btn-icon" style="font-size:0.75rem; padding:3px 8px;">
+                            ➕ NEW THREAD
+                        </button>
+                    </div>
+                    
+                    <div id="chatHistoryList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+                        <!-- Conversation threads injected here -->
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- HOLOGRAPHIC AI CONFIGURATION MODAL -->
+    <div id="configModalOverlay" class="hud-modal-overlay">
+        <div class="hud-modal">
+            <div class="hud-modal-header">
+                <div class="hud-modal-title">
+                    <span>⚙️</span>
+                    <span>AI BRAIN & PROVIDER CONFIGURATION</span>
+                </div>
+                <button id="configModalCloseBtn" class="hud-modal-close">✕</button>
+            </div>
+
+            <!-- Provider Selection Tabs -->
+            <div class="provider-switch-group">
+                <button type="button" class="provider-chip-btn active" id="provOpenRouterBtn" data-provider="openrouter">
+                    <span style="font-size:1.1rem;">🌐</span>
+                    <span>OPENROUTER (CLOUD)</span>
+                    <span style="font-size:0.65rem; color:var(--stark-green);">Gemma 26B / Llama 70B</span>
+                </button>
+                <button type="button" class="provider-chip-btn" id="provOllamaBtn" data-provider="ollama">
+                    <span style="font-size:1.1rem;">⚡</span>
+                    <span>OLLAMA (LOCAL)</span>
+                    <span style="font-size:0.65rem; color:var(--stark-cyan);">Qwen3.5 4B / Offline</span>
+                </button>
+            </div>
+
+            <!-- OpenRouter Settings Section -->
+            <div id="openrouterSettingsGroup" class="config-field-group">
+                <label class="config-label">OPENROUTER API KEY</label>
+                <div style="display:flex; gap:6px;">
+                    <input type="password" id="openrouterApiKeyInput" class="hud-input" placeholder="sk-or-v1-..." style="font-family:monospace; font-size:0.85rem;">
+                    <button type="button" id="toggleApiKeyVisBtn" class="hud-btn-icon" style="padding:0 10px;">👁️</button>
+                </div>
+                
+                <label class="config-label" style="margin-top:8px;">TARGET MODEL IDENTIFIER</label>
+                <select id="openrouterModelSelect" class="hud-input" style="background:#02050e; color:var(--stark-cyan); font-family:var(--font-telemetry);">
+                    <option value="google/gemma-4-26b-a4b-it:free">Google Gemma 4 26B (Free - Default)</option>
+                    <option value="poolside/laguna-s-2.1:free">Laguna 2.1 (Free)</option>
+                    <option value="cohere/north-mini-code:free">Cohere North Mini Code (Free)</option>
+                    <option value="custom">-- Custom Model ID (from OpenRouter) --</option>
+                </select>
+                <input type="text" id="customModelInput" class="hud-input" placeholder="e.g. mistralai/mistral-large-2407" style="display:none; margin-top:4px; font-family:monospace; font-size:0.85rem;">
+            </div>
+
+            <!-- Ollama Settings Section -->
+            <div id="ollamaSettingsGroup" class="config-field-group" style="display:none;">
+                <label class="config-label">LOCAL OLLAMA MODEL</label>
+                <input type="text" id="ollamaModelInput" class="hud-input" value="qwen3.5:4b" style="font-family:monospace; font-size:0.85rem;">
+                <span style="font-size:0.7rem; color:var(--text-dim);">Requires local Ollama running on http://localhost:11434</span>
+            </div>
+
+            <!-- Voice Synthesis Settings -->
+            <div class="config-field-group">
+                <label class="config-label">VOICE ENGINE</label>
+                <select id="ttsEngineSelect" class="hud-input" style="background:#02050e; color:var(--stark-cyan); font-family:var(--font-telemetry);">
+                    <option value="edge">Edge TTS (Cloud / High Quality)</option>
+                    <option value="piper">Piper TTS (Local / Offline)</option>
+                    <option value="browser">Browser TTS (Web API / Fallback)</option>
+                </select>
+
+                <label class="config-label" style="margin-top:8px;">VOICE MODEL</label>
+                <select id="ttsVoiceSelect" class="hud-input" style="background:#02050e; color:var(--stark-cyan); font-family:var(--font-telemetry);">
+                    <option value="fa_IR-Male">Persian - Male (Farid/Amir)</option>
+                    <option value="fa_IR-Female">Persian - Female (Dilara)</option>
+                    <option value="en_US-Male">English - Male (Christopher/Lessac)</option>
+                    <option value="en_US-Female">English - Female (Aria)</option>
+                </select>
+            </div>
+
+            <!-- Save & Test Actions -->
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(0,240,255,0.2); padding-top:12px;">
+                <span id="configStatusMsg" style="font-family:var(--font-telemetry); font-size:0.78rem; color:var(--stark-cyan);"></span>
+                <button type="button" id="saveProviderConfigBtn" class="hud-send-btn" style="padding:8px 18px;">
+                    SAVE & APPLY
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/lib/three.min.js"></script>
+    <script src="js/lib/OBJLoader.js"></script>
+    <script src="js/audio_synth.js"></script>
+    <script src="js/avatar.js"></script>
+    <script src="js/arc_reactor.js"></script>
+    <script src="js/telemetry.js"></script>
+    <script src="js/ocr_lab.js"></script>
+    <script src="js/protocols.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/file_handler.js"></script>
+</body>
+</html>
