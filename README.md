@@ -59,9 +59,9 @@ The projects are beautifully organized by AI sub-domains. *(Note: Jarvis is a se
 │   └── 📁 Deep-Q-Networks/
 │
 ├── 📁 NLP-and-LLMs/                 ← (Natural Language & Generative AI)
-│   ├── 📁 RAG-Systems/
-    ├── 📁 Fine-tuned Models/           ← (Retrieval-Augmented Generation)
-│   ├── 📁 Multi-agent systems/         ← (Optimizing LLM interactions)
+│   ├── 📁 RAG-Systems/              ← (Retrieval-Augmented Generation)
+│   ├── 📁 Fine-tuned Models/        ← (Task-specific LLM adaptation)
+│   ├── 📁 Multi-agent Systems/      ← (Collaborative AI agents & workflows)
 │   └── 📁 Autonomous-Agents/        ← (AI Agents & Tool Calling)
 │
 └── 📁 Predictive-Maintenance/       ← (Industrial AI applications)
