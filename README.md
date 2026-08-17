@@ -42,7 +42,7 @@ The projects are beautifully organized by AI sub-domains. *(Note: Jarvis is a se
 ├── 📁 Computer-Vision/              ← (Vision AI & Image Processing)
 │   ├── 📁 FaceVision Pro/           ← (Advanced face detection & recognition)
 │   ├── 📁 Hand Tracker/             ← (Real-time hand gesture tracking)
-│   └── 📁 Volume Controler with AI/ ← (AI-based system volume control using gestures)
+│   └── 📁 Volume Controller with AI/ ← (AI-based system volume control using gestures)
 │
 ├── 📁 Machine-Learning/             ← (Classical ML algorithms & techniques)
 │   ├── 📁 Regression/               ← (Linear, Polynomial, Ridge, Lasso)
@@ -59,8 +59,9 @@ The projects are beautifully organized by AI sub-domains. *(Note: Jarvis is a se
 │   └── 📁 Deep-Q-Networks/
 │
 ├── 📁 NLP-and-LLMs/                 ← (Natural Language & Generative AI)
-│   ├── 📁 RAG-Systems/              ← (Retrieval-Augmented Generation)
-│   ├── 📁 Prompt-Engineering/       ← (Optimizing LLM interactions)
+│   ├── 📁 RAG-Systems/
+    ├── 📁 Fine-tuned Models/           ← (Retrieval-Augmented Generation)
+│   ├── 📁 Multi-agent systems/         ← (Optimizing LLM interactions)
 │   └── 📁 Autonomous-Agents/        ← (AI Agents & Tool Calling)
 │
 └── 📁 Predictive-Maintenance/       ← (Industrial AI applications)
