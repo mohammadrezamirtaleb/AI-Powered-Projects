@@ -11,92 +11,92 @@
 
 ---
 
-## 🌟 درباره پروژه (About the Project)
+## 🌟 About the Project
 
-این پروژه یک شبیه‌ساز پیشرفته **یادگیری تقویتی عمیق (Deep RL)** است که رفتار ترافیکی تقاطع‌ها و خودروهای خودران را با استفاده از الگوریتم **Dueling Double DQN** به تصویر می‌کشد.
+This project is an advanced **Deep Reinforcement Learning (Deep RL)** simulator that models the behavior of autonomous vehicles at a busy intersection using the **Dueling Double DQN** architecture.
 
-در این محیط، خودروها با استفاده از هوش مصنوعی یاد می‌گیرند که چگونه بدون تصادف، با سرعت و امنیت کامل از یک چهارراه شلوغ عبور کنند. آنها شرایط جوی (آب‌وهوا)، چراغ‌های راهنمایی، عابران پیاده و سایر خودروها را با سنسورهای رادار و لیزر خود (LiDAR-like) درک می‌کنند و تصمیم‌گیری می‌کنند.
-
----
-
-## 🚀 ویژگی‌های کلیدی و خفن پروژه
-
-- 🧠 **هوش مصنوعی پیشرفته (Deep RL):** استفاده از `Prioritized Experience Replay (PER)` و معماری `Dueling DQN` برای یادگیری سریع‌تر.
-- 🌦️ **آب و هوای داینامیک:** بارش باران، برف و تغییر میزان لغزندگی (Grip/Friction) جاده که شبکه عصبی آن را درک کرده و رفتارش را تطبیق می‌دهد.
-- 🚶 **عابران پیاده و خط عابر:** مدل یاد می‌گیرد در برخورد با عابران روی خط عابر پیاده توقف کند.
-- 🚑 **سیستم اورژانس هوشمند:** خودروهای آمبولانس می‌توانند چراغ‌ها را به صورت اضطراری تغییر دهند (Emergency Preemption).
-- 🌙 **سیستم نورپردازی شب و روز:** رندرینگ پیشرفته سایه‌ها و نور چراغ خودروها در شب.
-- 📊 **داشبورد سایبرپانک و لایو:** نمایش زنده آمار شبکه عصبی، Q-Values و فعال‌سازی نورون‌های هوش مصنوعی درون UI.
+In this environment, autonomous agents learn how to navigate through a heavily congested crossroad safely and efficiently without any collisions. The agents perceive weather conditions, traffic lights, pedestrians, and other vehicles through their simulated LiDAR and radar sensors to make real-time intelligent driving decisions.
 
 ---
 
-## 📁 ساختار پوشه‌ها و معماری کد
+## 🚀 Key Features
+
+- 🧠 **Advanced Deep RL:** Utilizes `Prioritized Experience Replay (PER)` and a `Dueling DQN` neural network architecture for faster and more stable learning.
+- 🌦️ **Dynamic Weather System:** Rain, snow, and varying road grip (friction) are fed into the neural network, teaching the agent to brake earlier on slippery roads.
+- 🚶 **Pedestrians & Crosswalks:** The AI learns to yield to pedestrians crossing the street on zebra crossings.
+- 🚑 **Smart Emergency Vehicles:** Ambulances can actuate and override traffic signals (Emergency Preemption) to clear the intersection.
+- 🌙 **Day & Night Rendering Engine:** Features a dynamic 2D lighting engine with realistic headlights, bloom, and shadows.
+- 📊 **Cyberpunk Live Telemetry HUD:** Displays real-time neural network layer activations, Q-Values, decision probabilities, and success metrics.
+
+---
+
+## 📁 Project Structure & Architecture
 
 ```text
 📁 Cross Road/
-├── 📄 run.bat                     # اجرای سریع شبیه‌ساز گرافیکی
-├── 📄 train.bat                   # اجرای آموزش شبکه بدون گرافیک (سریع)
-├── 📄 requirements.txt            # پیش‌نیازهای پایتون
-├── 📄 README.md                   # همین فایلی که می‌خوانید!
-├── 📁 assets/                     # تصاویر و بنرها
+├── 📄 run.bat                     # Quick launch script for GUI simulation
+├── 📄 train.bat                   # Quick launch script for fast headless training
+├── 📄 requirements.txt            # Python dependencies
+├── 📄 README.md                   # The file you are currently reading!
+├── 📁 assets/                     # Media and images
 │   └── 🖼️ banner.png
-├── 📁 src/                        # سورس‌کد اصلی پروژه
-│   ├── 📄 config.py               # تنظیمات کلی و هایپرپارامترهای RL
-│   ├── 📄 main.py                 # هسته اصلی و حلقه گرافیکی بازی/شبیه‌ساز
-│   ├── 📄 train_headless.py       # اسکریپت آموزش سریع در پس‌زمینه (بدون UI)
-│   ├── 📁 ai/                     # ماژول‌های هوش مصنوعی
-│   │   ├── 📄 dqn_agent.py        # عامل DQN، بافر و منطق یادگیری تقویتی
-│   │   ├── 📄 network.py          # معماری شبکه عصبی (PyTorch)
-│   │   └── 📁 weights/            # محل ذخیره مغز آموزش دیده (مدل pt)
-│   ├── 📁 simulation/             # فیزیک و منطق جهان شبیه‌سازی
-│   │   ├── 📄 vehicle.py          # فیزیک خودروها و برخورد
-│   │   ├── 📄 sensors.py          # سنسورها، رادار و محاسبه TTC
-│   │   ├── 📄 intersection.py     # مسیرها و هندسه تقاطع
-│   │   ├── 📄 pedestrians.py      # هوش و حرکت عابران پیاده
-│   │   ├── 📄 weather.py          # موتور آب و هوا و اصطکاک جاده
-│   │   ├── 📄 traffic_controller.py # کنترلر چراغ‌های راهنمایی هوشمند
-│   │   └── 📄 particles.py        # ذرات دود، جرقه و خط ترمز
-│   └── 📁 render/                 # موتور رندرینگ و گرافیک
-│       ├── 📄 renderer.py         # کشیدن محیط و خودروها
-│       ├── 📄 lighting.py         # سیستم سایه و نور در شب
-│       └── 📄 ui_hud.py           # رابط کاربری خفن و داشبورد زنده هوش مصنوعی
-└── 📁 tests/                      # تست‌های واحد
-    └── 📄 test_collision.py       # تست سیستم تشخیص تصادف
+├── 📁 src/                        # Main source code
+│   ├── 📄 config.py               # Global configuration and RL hyperparameters
+│   ├── 📄 main.py                 # Core simulation loop and Pygame rendering
+│   ├── 📄 train_headless.py       # Background training loop (No GUI, maximum FPS)
+│   ├── 📁 ai/                     # Artificial Intelligence modules
+│   │   ├── 📄 dqn_agent.py        # DQN Agent, Memory Buffer, and RL logic
+│   │   ├── 📄 network.py          # PyTorch Neural Network architecture
+│   │   └── 📁 weights/            # Pre-trained model weights (.pt files)
+│   ├── 📁 simulation/             # Physics and world simulation logic
+│   │   ├── 📄 vehicle.py          # Vehicle physics, kinematics, and OBB collisions
+│   │   ├── 📄 sensors.py          # Raycasting sensors, LiDAR, and TTC calculations
+│   │   ├── 📄 intersection.py     # Map geometry and routing
+│   │   ├── 📄 pedestrians.py      # Pedestrian behavior and spawning
+│   │   ├── 📄 weather.py          # Weather engine and road friction
+│   │   ├── 📄 traffic_controller.py # Smart and adaptive traffic light controller
+│   │   └── 📄 particles.py        # Particle systems (smoke, sparks, skid marks)
+│   └── 📁 render/                 # Graphics and UI Engine
+│       ├── 📄 renderer.py         # Drawing the environment and entities
+│       ├── 📄 lighting.py         # Night lighting and shadow casting
+│       └── 📄 ui_hud.py           # Cyberpunk telemetry dashboard and NN Visualizer
+└── 📁 tests/                      # Unit Tests
+    └── 📄 test_collision.py       # Collision detection tests
 ```
 
 ---
 
-## 🎮 نحوه نصب و اجرا
+## 🎮 Installation & Usage
 
-### ۱. نصب پیش‌نیازها
-ابتدا پایتون ۳ (ترجیحاً ۳.۱۰ به بالا) را نصب کرده و سپس پکیج‌های زیر را نصب کنید:
+### 1. Install Dependencies
+Ensure you have Python 3 (preferably 3.10+) installed, then run:
 ```bash
 pip install -r requirements.txt
 ```
 
-### ۲. اجرای شبیه‌ساز (گرافیکی)
-برای تماشای محیط و رانندگی هوش مصنوعی، فایل `run.bat` را اجرا کنید یا دستور زیر را در ترمینال بزنید:
+### 2. Run the Simulation (GUI Mode)
+To watch the AI drive in the fully rendered environment, run `run.bat` or use the terminal:
 ```bash
 python src/main.py
 ```
 
-### ۳. آموزش هوش مصنوعی (بدون گرافیک)
-برای اینکه هوش مصنوعی در بک‌گراند بدون اتلاف منابع برای گرافیک آموزش ببیند، `train.bat` را اجرا کنید:
+### 3. Train the AI (Headless Mode)
+To train the AI in the background without wasting resources on rendering graphics, run `train.bat` or use the terminal:
 ```bash
 python src/train_headless.py
 ```
 
 ---
 
-## ⌨️ کلیدهای میانبر (در محیط گرافیکی)
+## ⌨️ Keybindings (GUI Mode)
 
-- `Space`: توقف / ادامه شبیه‌ساز
-- `W`: تغییر آب و هوا (آفتابی -> بارانی -> طوفانی)
-- `N`: تغییر روز و شب
-- `T`: تغییر دستی چراغ راهنمایی
-- `A`: اسپاون آمبولانس
-- `V`: نمایش/مخفی کردن اشعه‌های لیزر سنسور هوش مصنوعی (Vision Rays)
-- `1` / `2` / `3`: تغییر حالت هوش مصنوعی بین: احمق (آشوب) / در حال یادگیری / استاد (Master)
+- `Space`: Pause / Resume simulation
+- `W`: Toggle Weather (Clear -> Rain -> Storm)
+- `N`: Toggle Day / Night mode
+- `T`: Manually switch traffic lights
+- `A`: Spawn Ambulance
+- `V`: Toggle AI Vision Rays (LiDAR view)
+- `1` / `2` / `3`: Switch AI Mode between: Untrained Chaos / Live Training / Master AI
 
 <br>
 <div align="center">
