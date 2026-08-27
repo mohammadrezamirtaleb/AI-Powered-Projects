@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/banner_animated.gif" alt="Cross Road Autonomous AI Banner" width="100%">
+  <img src="assets/banner.png" alt="Cross Road Autonomous AI Banner" width="100%">
   
   <h1>🚦 Cross Road: Autonomous AI Simulation</h1>
   <p><b>Advanced Deep Reinforcement Learning for Autonomous Traffic Management & Navigation</b></p>
