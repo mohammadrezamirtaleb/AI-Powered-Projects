@@ -34,37 +34,29 @@ class Button:
         is_active = self.active_fn() if self.active_fn else False
 
         if is_active:
-            bg_col = (0, 140, 180, 220)
-            border_col = UI_ACCENT_CYAN
+            bg_col = (0, 120, 212, 255) # Windows 11 Accent Blue
+            border_col = (255, 255, 255, 20)
             text_col = (255, 255, 255)
         elif self.is_hovered:
-            bg_col = (45, 55, 75, 200)
-            border_col = (90, 160, 220)
+            bg_col = (255, 255, 255, 20) # Subtle white hover
+            border_col = (255, 255, 255, 15)
             text_col = (255, 255, 255)
         else:
-            bg_col = (22, 28, 38, 180)
-            border_col = (40, 50, 70)
-            text_col = UI_TEXT_MUTED
+            bg_col = (255, 255, 255, 10) # Rest state acrylic
+            border_col = (255, 255, 255, 10)
+            text_col = (230, 230, 230)
 
         # Draw transparent button background
         btn_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(btn_surf, bg_col, btn_surf.get_rect(), border_radius=6)
-        
-        # Add subtle top highlight (glass reflection)
-        highlight = pygame.Surface((self.rect.width, self.rect.height // 2), pygame.SRCALPHA)
-        pygame.draw.rect(highlight, (255, 255, 255, 12), highlight.get_rect(), border_top_left_radius=6, border_top_right_radius=6)
-        btn_surf.blit(highlight, (0, 0))
+        pygame.draw.rect(btn_surf, bg_col, btn_surf.get_rect(), border_radius=4)
         
         # Draw border
-        pygame.draw.rect(btn_surf, border_col, btn_surf.get_rect(), width=1, border_radius=6)
+        pygame.draw.rect(btn_surf, border_col, btn_surf.get_rect(), width=1, border_radius=4)
         
         surface.blit(btn_surf, self.rect.topleft)
 
         txt_surf = font.render(self.text, True, text_col)
-        # Drop shadow for text
-        shadow = font.render(self.text, True, (0, 0, 0))
         txt_rect = txt_surf.get_rect(center=self.rect.center)
-        surface.blit(shadow, (txt_rect.x + 1, txt_rect.y + 1))
         surface.blit(txt_surf, txt_rect)
 
 
@@ -98,22 +90,22 @@ class UIHud:
         # Row 1: Day / Night mode buttons
         y = 62
         self.buttons.append(Button(
-            (bx, y, 70, bh), "☀️ Day",
+            (bx, y, 70, bh), "Day",
             lambda: self.sim.set_day_night(0.0),
             active_fn=lambda: self.sim.night_factor < 0.2
         ))
         self.buttons.append(Button(
-            (bx + 75, y, 75, bh), "🌅 Sunset",
+            (bx + 75, y, 75, bh), "Sunset",
             lambda: self.sim.set_day_night(0.5),
             active_fn=lambda: 0.3 <= self.sim.night_factor <= 0.7
         ))
         self.buttons.append(Button(
-            (bx + 155, y, 75, bh), "🌙 Night",
+            (bx + 155, y, 75, bh), "Night",
             lambda: self.sim.set_day_night(1.0),
             active_fn=lambda: self.sim.night_factor > 0.8
         ))
         self.buttons.append(Button(
-            (bx + 235, y, 90, bh), "🔄 Auto Cycle",
+            (bx + 235, y, 90, bh), "Auto Cycle",
             lambda: self.sim.toggle_auto_day_night(),
             active_fn=lambda: self.sim.auto_day_night
         ))
@@ -121,24 +113,24 @@ class UIHud:
         # Row 2: Dynamic Weather System buttons
         y = 90
         self.buttons.append(Button(
-            (bx, y, 104, bh), "☀️ Dry Clear",
+            (bx, y, 104, bh), "Dry Clear",
             lambda: self.sim.weather.set_mode('CLEAR'),
             active_fn=lambda: self.sim.weather.weather_mode == 'CLEAR'
         ))
         self.buttons.append(Button(
-            (bx + 112, y, 104, bh), "🌧️ Rain (Wet)",
+            (bx + 112, y, 104, bh), "Rain (Wet)",
             lambda: self.sim.weather.set_mode('RAIN'),
             active_fn=lambda: self.sim.weather.weather_mode == 'RAIN'
         ))
         self.buttons.append(Button(
-            (bx + 224, y, 101, bh), "⛈️ Storm",
+            (bx + 224, y, 101, bh), "Storm",
             lambda: self.sim.weather.set_mode('STORM'),
             active_fn=lambda: self.sim.weather.weather_mode == 'STORM'
         ))
 
         # Row 3: Speed Multipliers
         y = 135
-        speeds = [(0.0, "⏸️"), (1.0, "1x"), (2.0, "2x"), (5.0, "5x"), (10.0, "10x")]
+        speeds = [(0.0, "Pause"), (1.0, "1x"), (2.0, "2x"), (5.0, "5x"), (10.0, "10x")]
         sw = 60
         for i, (spd, label) in enumerate(speeds):
             self.buttons.append(Button(
@@ -151,17 +143,17 @@ class UIHud:
         y = 180
         mw = 104
         self.buttons.append(Button(
-            (bx, y, mw, bh + 4), "💥 Chaos Mode",
+            (bx, y, mw, bh + 4), "Chaos Mode",
             lambda: self.sim.set_ai_mode('UNTRAINED'),
             active_fn=lambda: self.sim.agent.mode == 'UNTRAINED'
         ))
         self.buttons.append(Button(
-            (bx + mw + 8, y, mw, bh + 4), "🧠 Live Train",
+            (bx + mw + 8, y, mw, bh + 4), "Live Train",
             lambda: self.sim.set_ai_mode('TRAINING'),
             active_fn=lambda: self.sim.agent.mode == 'TRAINING'
         ))
         self.buttons.append(Button(
-            (bx + (mw + 8) * 2, y, mw, bh + 4), "⭐ Master AI",
+            (bx + (mw + 8) * 2, y, mw, bh + 4), "Master AI",
             lambda: self.sim.set_ai_mode('MASTER'),
             active_fn=lambda: self.sim.agent.mode == 'MASTER'
         ))
@@ -169,12 +161,12 @@ class UIHud:
         # Row 5: Traffic light & Adaptive Signals
         y = 405
         self.buttons.append(Button(
-            (bx, y, 155, bh), "🚦 Switch Light (T)",
+            (bx, y, 155, bh), "Switch Light (T)",
             lambda: self.sim.traffic_controller.switch_manual_phase(),
             active_fn=lambda: self.sim.traffic_controller.is_manual
         ))
         self.buttons.append(Button(
-            (bx + 165, y, 160, bh), "🌐 Adaptive Signals",
+            (bx + 165, y, 160, bh), "Adaptive Signals",
             lambda: self.sim.traffic_controller.toggle_adaptive(),
             active_fn=lambda: self.sim.traffic_controller.adaptive_mode
         ))
@@ -182,45 +174,45 @@ class UIHud:
         # Row 6: Vehicle Spawners
         y = 433
         self.buttons.append(Button(
-            (bx, y, 155, bh), "🚗 Spawn Car (S)",
+            (bx, y, 155, bh), "Spawn Car (S)",
             lambda: self.sim.spawn_random_vehicle()
         ))
         self.buttons.append(Button(
-            (bx + 165, y, 160, bh), "🚑 Spawn Ambulance",
+            (bx + 165, y, 160, bh), "Spawn Ambulance",
             lambda: self.sim.spawn_ambulance()
         ))
 
         # Row 7: Vision Rays, Cinematic, Reset
         y = 461
         self.buttons.append(Button(
-            (bx, y, 105, bh), "👁️ Vision (V)",
+            (bx, y, 105, bh), "Vision (V)",
             lambda: self.sim.toggle_vision_overlay(),
             active_fn=lambda: self.sim.show_vision_rays
         ))
         self.buttons.append(Button(
-            (bx + 110, y, 105, bh), "🎥 Cinematic",
+            (bx + 110, y, 105, bh), "Cinematic",
             lambda: self.sim.toggle_cinematic(),
             active_fn=lambda: getattr(self.sim, 'cinematic_mode', False)
         ))
         self.buttons.append(Button(
-            (bx + 220, y, 105, bh), "🗑️ Reset (R)",
+            (bx + 220, y, 105, bh), "Reset (R)",
             lambda: self.sim.reset_statistics()
         ))
         
         # Row 8: V2V, Jaywalkers, Save AI
         y = 489
         self.buttons.append(Button(
-            (bx, y, 105, bh), "🛜 V2V Sync",
+            (bx, y, 105, bh), "V2V Sync",
             lambda: self.sim.toggle_v2v(),
             active_fn=lambda: getattr(self.sim, 'v2v_enabled', False)
         ))
         self.buttons.append(Button(
-            (bx + 110, y, 105, bh), "🚶 Jaywalkers",
+            (bx + 110, y, 105, bh), "Jaywalkers",
             lambda: self.sim.toggle_jaywalking(),
             active_fn=lambda: getattr(self.sim, 'jaywalking_enabled', False)
         ))
         self.buttons.append(Button(
-            (bx + 220, y, 105, bh), "💾 Save AI",
+            (bx + 220, y, 105, bh), "Save AI",
             lambda: self.sim.save_model()
         ))
 

@@ -491,22 +491,26 @@ class Vehicle:
         # Thought Vectors (Action Intent)
         if getattr(self, 'action_name', None):
             try:
-                font = pygame.font.SysFont("Segoe UI Emoji, Segoe UI", 12)
+                font = pygame.font.SysFont("Segoe UI, Arial", 10, bold=True)
                 icon = ""
                 if "BRAKE" in self.action_name:
-                    icon = "🛑"
+                    icon = "[BRAKE]"
                 elif "ACCEL" in self.action_name:
-                    icon = "🚀"
+                    icon = "[ACCEL]"
                 elif getattr(self, 'is_hydroplaning', False):
-                    icon = "💧"
+                    icon = "[SLIP]"
                 elif getattr(self, 'v2v_triggered', False):
-                    icon = "🛜"
+                    icon = "[V2V]"
                 
                 if icon:
+                    # Draw a nice fluent pill background for the text
                     txt = font.render(icon, True, (255, 255, 255))
-                    surface.blit(txt, (int(self.x) - 8, int(self.y) - 20))
+                    txt_w = txt.get_width()
+                    pill_rect = pygame.Rect(int(self.x) - txt_w//2 - 2, int(self.y) - 22, txt_w + 4, 14)
+                    pygame.draw.rect(surface, (40, 40, 40), pill_rect, border_radius=4)
+                    surface.blit(txt, (int(self.x) - txt_w//2, int(self.y) - 21))
             except:
-                pass # font might not support emoji
+                pass
 
         # 8. Selection Ring if tracked
         if is_selected:

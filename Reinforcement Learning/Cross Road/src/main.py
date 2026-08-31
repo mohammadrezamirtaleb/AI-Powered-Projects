@@ -206,18 +206,23 @@ class Simulation:
                     if not v1.is_alive:
                         break
     def step_simulation(self, dt):
+        scaled_dt = dt * self.sim_speed
+
+        if self.sim_speed <= 0.0:
+            return
+
         # 1. Update Traffic Lights (with adaptive queue & emergency preemption)
-        self.traffic_controller.update(dt, self.vehicles)
+        self.traffic_controller.update(scaled_dt, self.vehicles)
 
         # 2. Update Weather Engine
-        self.weather.update(dt)
+        self.weather.update(scaled_dt)
 
         # 3. Update Pedestrians
-        self.pedestrian_mgr.update(dt, self.traffic_controller, jaywalking_enabled=self.jaywalking_enabled)
+        self.pedestrian_mgr.update(scaled_dt, self.traffic_controller, jaywalking_enabled=self.jaywalking_enabled)
 
         # 4. Update Day/Night Transition
         if self.auto_day_night:
-            self.day_night_timer += dt * 0.15
+            self.day_night_timer += scaled_dt * 0.15
             self.night_factor = (math.sin(self.day_night_timer) + 1.0) / 2.0
         else:
             self.night_factor += (self.target_night_factor - self.night_factor) * 0.08
@@ -227,6 +232,8 @@ class Simulation:
 
         # 6. Perception & Action (Pass 1)
         grip = self.weather.friction_coeff
+        current_action_repeat = max(1, int(ACTION_REPEAT / max(1.0, self.sim_speed)))
+
         for car in self.vehicles:
             if not car.is_alive:
                 continue
@@ -241,9 +248,8 @@ class Simulation:
                 pedestrians=self.pedestrian_mgr.pedestrians
             )
 
-            # Deep RL Decision (Action Repeat at 15 Hz)
-            if car.decision_step % ACTION_REPEAT == 0 or car.last_state is None:
-                # Use expert guidance early in Live Training to bootstrap
+            # Deep RL Decision 
+            if car.decision_step % current_action_repeat == 0 or car.last_state is None:
                 expert_prob = max(0.0, (self.agent.epsilon - 0.2) / 0.8) if self.agent.mode == 'TRAINING' else 0.0
                 if random.random() < expert_prob:
                     action = get_expert_action(car, tl_state, car.get_distance_to_stop_line(), self.vehicles, self.intersection.junction_bounds)
@@ -257,7 +263,7 @@ class Simulation:
         for car in self.vehicles:
             tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
             car.update_physics(
-                dt, 
+                scaled_dt, 
                 friction_coeff=grip, 
                 current_tl_state=tl_state,
                 all_vehicles=self.vehicles,
@@ -270,7 +276,7 @@ class Simulation:
 
         # 9. Next State, Reward & Transition Storage (Pass 4)
         for car in self.vehicles:
-            if car.last_state is None or car.decision_step % ACTION_REPEAT != 0:
+            if car.last_state is None or car.decision_step % current_action_repeat != 0:
                 continue
 
             tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
@@ -287,9 +293,12 @@ class Simulation:
             done = car.has_crashed or car.has_finished
             self.agent.store_transition(car.last_state, car.last_action, reward, next_state, done)
 
-        # 8. Deep RL Optimization Step (2 mini-batches per frame for faster learning)
-        self.agent.train_step()
-        self.agent.train_step()
+        # 8. Deep RL Optimization Step
+        # Scale training steps with sim_speed so it actually learns faster at 10x!
+        # Cap at 5 per frame to prevent FPS dropping to 2.
+        train_loops = min(5, max(1, int(self.sim_speed)))
+        for _ in range(train_loops):
+            self.agent.train_step()
 
         # 9. Update Particles
         self.particle_mgr.update()
@@ -344,14 +353,7 @@ class Simulation:
 
                 self.hud.handle_event(event)
 
-            # Fast-forward RL simulation correctly by looping step_simulation
-            steps_to_run = int(self.sim_speed)
-            if self.sim_speed > 0.0 and steps_to_run < 1:
-                steps_to_run = 1 # min 1 step if not paused
-
-            if self.sim_speed > 0.0:
-                for _ in range(steps_to_run):
-                    self.step_simulation(fixed_dt)
+            self.step_simulation(fixed_dt)
 
             # 1. Asphalt Road, zebra markings, grass
             self.renderer.render_environment(self.world_surface, self.night_factor)
