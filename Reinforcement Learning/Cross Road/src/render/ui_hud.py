@@ -34,23 +34,37 @@ class Button:
         is_active = self.active_fn() if self.active_fn else False
 
         if is_active:
-            bg_col = (0, 140, 180)
+            bg_col = (0, 140, 180, 220)
             border_col = UI_ACCENT_CYAN
             text_col = (255, 255, 255)
         elif self.is_hovered:
-            bg_col = (45, 55, 75)
-            border_col = (90, 130, 180)
+            bg_col = (45, 55, 75, 200)
+            border_col = (90, 160, 220)
             text_col = (255, 255, 255)
         else:
-            bg_col = (28, 34, 46)
-            border_col = UI_PANEL_BORDER
+            bg_col = (22, 28, 38, 180)
+            border_col = (40, 50, 70)
             text_col = UI_TEXT_MUTED
 
-        pygame.draw.rect(surface, bg_col, self.rect, border_radius=6)
-        pygame.draw.rect(surface, border_col, self.rect, width=1, border_radius=6)
+        # Draw transparent button background
+        btn_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(btn_surf, bg_col, btn_surf.get_rect(), border_radius=6)
+        
+        # Add subtle top highlight (glass reflection)
+        highlight = pygame.Surface((self.rect.width, self.rect.height // 2), pygame.SRCALPHA)
+        pygame.draw.rect(highlight, (255, 255, 255, 12), highlight.get_rect(), border_top_left_radius=6, border_top_right_radius=6)
+        btn_surf.blit(highlight, (0, 0))
+        
+        # Draw border
+        pygame.draw.rect(btn_surf, border_col, btn_surf.get_rect(), width=1, border_radius=6)
+        
+        surface.blit(btn_surf, self.rect.topleft)
 
         txt_surf = font.render(self.text, True, text_col)
+        # Drop shadow for text
+        shadow = font.render(self.text, True, (0, 0, 0))
         txt_rect = txt_surf.get_rect(center=self.rect.center)
+        surface.blit(shadow, (txt_rect.x + 1, txt_rect.y + 1))
         surface.blit(txt_surf, txt_rect)
 
 
@@ -240,11 +254,18 @@ class UIHud:
 
         # 1. Main HUD Background Surface
         hud_surf = pygame.Surface((self.hud_width, SCREEN_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.rect(hud_surf, UI_PANEL_BG, (0, 0, self.hud_width, SCREEN_HEIGHT))
-        pygame.draw.line(hud_surf, UI_PANEL_BORDER, (0, 0), (0, SCREEN_HEIGHT), 2)
+        # Deep cyberpunk translucent glass
+        pygame.draw.rect(hud_surf, (12, 16, 24, 215), (0, 0, self.hud_width, SCREEN_HEIGHT))
+        
+        # Add a subtle gradient on the left edge
+        left_edge = pygame.Surface((4, SCREEN_HEIGHT), pygame.SRCALPHA)
+        pygame.draw.rect(left_edge, (0, 200, 255, 150), left_edge.get_rect())
+        hud_surf.blit(left_edge, (0, 0))
+        
+        pygame.draw.line(hud_surf, (0, 150, 200, 100), (4, 0), (4, SCREEN_HEIGHT), 1)
         surface.blit(hud_surf, (self.hud_x, 0))
 
-        # 2. Header
+        # 2. Header with glowing drop shadow
         title = self.font_title.render("⚡ AUTONOMOUS CROSSROAD AI", True, UI_ACCENT_CYAN)
         surface.blit(title, (self.hud_x + 15, 10))
 
@@ -406,4 +427,9 @@ class UIHud:
                     next_nodes = len(layer_cols[l_idx + 1][1])
                     for next_n in range(min(4, next_nodes)):
                         next_y = node_y_start + 10 + next_n * (node_spacing * (num_nodes / max(1, next_nodes)))
-                        pygame.draw.line(surface, (40, 90, 140), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 1)
+                        # Glowing connection line
+                        if intensity > 0.3:
+                            pygame.draw.line(surface, (0, 200, 255, 60), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 2)
+                            pygame.draw.line(surface, (100, 240, 255), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 1)
+                        else:
+                            pygame.draw.line(surface, (30, 45, 65), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 1)

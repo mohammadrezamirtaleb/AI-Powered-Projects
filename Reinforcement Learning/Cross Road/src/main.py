@@ -206,21 +206,18 @@ class Simulation:
                     if not v1.is_alive:
                         break
     def step_simulation(self, dt):
-        if self.sim_speed <= 0.0:
-            return # Paused
-
         # 1. Update Traffic Lights (with adaptive queue & emergency preemption)
-        self.traffic_controller.update(dt * self.sim_speed, self.vehicles)
+        self.traffic_controller.update(dt, self.vehicles)
 
         # 2. Update Weather Engine
-        self.weather.update(dt * self.sim_speed)
+        self.weather.update(dt)
 
         # 3. Update Pedestrians
-        self.pedestrian_mgr.update(dt * self.sim_speed, self.traffic_controller, jaywalking_enabled=self.jaywalking_enabled)
+        self.pedestrian_mgr.update(dt, self.traffic_controller, jaywalking_enabled=self.jaywalking_enabled)
 
         # 4. Update Day/Night Transition
         if self.auto_day_night:
-            self.day_night_timer += dt * 0.15 * self.sim_speed
+            self.day_night_timer += dt * 0.15
             self.night_factor = (math.sin(self.day_night_timer) + 1.0) / 2.0
         else:
             self.night_factor += (self.target_night_factor - self.night_factor) * 0.08
@@ -260,7 +257,7 @@ class Simulation:
         for car in self.vehicles:
             tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
             car.update_physics(
-                dt * self.sim_speed, 
+                dt, 
                 friction_coeff=grip, 
                 current_tl_state=tl_state,
                 all_vehicles=self.vehicles,
@@ -315,9 +312,6 @@ class Simulation:
             
             # RL requires a stable physics time-step, regardless of rendering lag
             fixed_dt = 1.0 / 60.0
-
-            # 1. Weather Update
-            self.weather.update(fixed_dt * self.sim_speed)
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -350,7 +344,14 @@ class Simulation:
 
                 self.hud.handle_event(event)
 
-            self.step_simulation(fixed_dt)
+            # Fast-forward RL simulation correctly by looping step_simulation
+            steps_to_run = int(self.sim_speed)
+            if self.sim_speed > 0.0 and steps_to_run < 1:
+                steps_to_run = 1 # min 1 step if not paused
+
+            if self.sim_speed > 0.0:
+                for _ in range(steps_to_run):
+                    self.step_simulation(fixed_dt)
 
             # 1. Asphalt Road, zebra markings, grass
             self.renderer.render_environment(self.world_surface, self.night_factor)
