@@ -127,7 +127,7 @@ class PedestrianManager:
             ]
         }
 
-    def update(self, dt, traffic_controller):
+    def update(self, dt, traffic_controller, jaywalking_enabled=False):
         # Update existing pedestrians
         for ped in self.pedestrians:
             ped.update(dt)
@@ -144,7 +144,22 @@ class PedestrianManager:
                 if traffic_controller.get_light_state(cw_name) == 'RED':
                     eligible.append(cw_name)
 
-            if eligible:
+            # 25% chance to spawn a jaywalker if enabled
+            if jaywalking_enabled and random.random() < 0.25:
+                # Random side to random side
+                sides = [
+                    (self.intersection.cx - 150, random.uniform(200, 500)),
+                    (self.intersection.cx + 150, random.uniform(200, 500)),
+                    (random.uniform(400, 800), self.intersection.cy - 150),
+                    (random.uniform(400, 800), self.intersection.cy + 150)
+                ]
+                start_side = random.choice(sides)
+                sides.remove(start_side)
+                end_side = random.choice(sides)
+                
+                ped = Pedestrian('JAYWALKER', 1, start_side, end_side, speed=1.3)
+                self.pedestrians.append(ped)
+            elif eligible:
                 chosen_cw = random.choice(eligible)
                 path = random.choice(self.crosswalk_paths[chosen_cw])
                 ped = Pedestrian(chosen_cw, 1, path[0], path[1])

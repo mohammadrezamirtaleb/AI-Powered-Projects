@@ -148,15 +148,33 @@ class LightingEngine:
             hw = car.width / 2.0 - 2.5
 
             # Headlights
-            front_r = (car.x + hl * cos_a - hw * sin_a, car.y + hl * sin_a + hw * cos_a)
-            front_l = (car.x + hl * cos_a + hw * sin_a, car.y + hl * sin_a - hw * cos_a)
+            front_cx = car.x + hl * cos_a
+            front_cy = car.y + hl * sin_a
 
-            # Cast dual headlight cones directly to light_cutout_surface
-            cone_alpha = int(140 * night_factor)
-            cone_col = (255, 255, 230, cone_alpha)
-            for hp in (front_r, front_l):
-                poly = create_light_cone_poly(hp[0], hp[1], car.angle, length=140.0 * night_factor, spread_angle=math.radians(34))
-                pygame.draw.polygon(self.light_cutout_surface, cone_col, [(int(p[0]), int(p[1])) for p in poly])
+            # Use pre-rendered headlight texture, scaled by night factor
+            if night_factor > 0:
+                # Car angle is in radians, 0 is right. Pygame rotate expects degrees, counter-clockwise.
+                # In Pygame, 0 degrees is right, 90 is UP.
+                # So we convert radians to degrees and negate.
+                # But wait, our `headlight_tex` points DOWN.
+                # A DOWN texture needs to be rotated so it points to `car.angle`.
+                # DOWN is 90 degrees (or pi/2 radians) in Pygame's y-down coord system.
+                # To point it at car.angle (where 0 is right), we subtract 90 degrees and negate.
+                angle_deg = -math.degrees(car.angle) - 90
+                
+                rotated_hl = pygame.transform.rotate(self.headlight_tex, angle_deg)
+                
+                # Offset to place the tip of the cone exactly at the front bumper
+                # The tip in original texture is at (w//2, 5).
+                # After rotation, its position changes. We can just center it roughly, 
+                # or better, just blit the center of the rotated rect to a shifted point.
+                hl_dist = rotated_hl.get_width() * 0.35
+                shift_x = front_cx + cos_a * hl_dist
+                shift_y = front_cy + sin_a * hl_dist
+                
+                hl_rect = rotated_hl.get_rect(center=(int(shift_x), int(shift_y)))
+                self.light_cutout_surface.blit(rotated_hl, hl_rect, special_flags=pygame.BLEND_RGBA_ADD)
+                self.bloom_surface.blit(rotated_hl, hl_rect, special_flags=pygame.BLEND_RGBA_ADD)
 
             # Brake light rear glow
             if car.is_braking:

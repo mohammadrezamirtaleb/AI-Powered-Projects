@@ -33,6 +33,7 @@ class Simulation:
         pygame.init()
         pygame.display.set_caption(SIM_NAME)
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
+        self.world_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
 
         # Core Simulation Components
@@ -59,6 +60,11 @@ class Simulation:
         # Simulation Speed & Controls
         self.sim_speed = 1.0
         self.show_vision_rays = True
+
+        # Viral Features Flags
+        self.cinematic_mode = False
+        self.v2v_enabled = True
+        self.jaywalking_enabled = True
 
         # Statistics
         self.stats = {
@@ -95,6 +101,15 @@ class Simulation:
 
     def toggle_vision_overlay(self):
         self.show_vision_rays = not self.show_vision_rays
+
+    def toggle_cinematic(self):
+        self.cinematic_mode = not self.cinematic_mode
+
+    def toggle_v2v(self):
+        self.v2v_enabled = not self.v2v_enabled
+
+    def toggle_jaywalking(self):
+        self.jaywalking_enabled = not self.jaywalking_enabled
 
     def reset_statistics(self):
         self.stats['total_spawned'] = 0
@@ -201,7 +216,7 @@ class Simulation:
         self.weather.update(dt * self.sim_speed)
 
         # 3. Update Pedestrians
-        self.pedestrian_mgr.update(dt * self.sim_speed, self.traffic_controller)
+        self.pedestrian_mgr.update(dt * self.sim_speed, self.traffic_controller, jaywalking_enabled=self.jaywalking_enabled)
 
         # 4. Update Day/Night Transition
         if self.auto_day_night:
@@ -244,7 +259,14 @@ class Simulation:
         # 7. Physics Update (Pass 2)
         for car in self.vehicles:
             tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
-            car.update_physics(dt * self.sim_speed, friction_coeff=grip, current_tl_state=tl_state)
+            car.update_physics(
+                dt * self.sim_speed, 
+                friction_coeff=grip, 
+                current_tl_state=tl_state,
+                all_vehicles=self.vehicles,
+                puddles=self.weather.puddles,
+                v2v_enabled=self.v2v_enabled
+            )
 
         # 8. Collision Checks (Pass 3)
         self.handle_collisions()
@@ -331,38 +353,38 @@ class Simulation:
             self.step_simulation(fixed_dt)
 
             # 1. Asphalt Road, zebra markings, grass
-            self.renderer.render_environment(self.screen, self.night_factor)
+            self.renderer.render_environment(self.world_surface, self.night_factor)
 
             # 2. Tire Skid Marks
-            self.particle_mgr.draw_skids(self.screen)
+            self.particle_mgr.draw_skids(self.world_surface)
 
             # 3. Traffic Light Post Enclosures
             self.renderer.render_traffic_lights(
-                self.screen, self.traffic_controller,
+                self.world_surface, self.traffic_controller,
                 self.intersection.light_poles, self.night_factor
             )
 
             # 4. Pedestrians on Zebra Crossings
             is_night_bool = (self.night_factor > 0.35)
-            self.pedestrian_mgr.draw(self.screen, is_night=is_night_bool)
+            self.pedestrian_mgr.draw(self.world_surface, is_night=is_night_bool)
 
             # 5. Vehicles (Sedans, SUVs, Trucks, Buses, Sports, Motorcycles, Ambulances)
             for car in self.vehicles:
                 is_sel = (self.selected_vehicle is not None and self.selected_vehicle.id == car.id)
-                car.draw(self.screen, is_night=is_night_bool, is_selected=is_sel)
+                car.draw(self.world_surface, is_night=is_night_bool, is_selected=is_sel)
 
             # 6. Vision / LiDAR Raycasts Overlay
             if self.show_vision_rays:
                 if self.selected_vehicle and self.selected_vehicle.is_alive:
-                    self.renderer.render_sensor_rays(self.screen, self.selected_vehicle)
+                    self.renderer.render_sensor_rays(self.world_surface, self.selected_vehicle)
                 elif self.vehicles:
                     for car in self.vehicles:
                         if car.is_alive:
-                            self.renderer.render_sensor_rays(self.screen, car)
+                            self.renderer.render_sensor_rays(self.world_surface, car)
                             break
 
             # 7. Particles (crash sparks, smoke, explosions)
-            self.particle_mgr.draw_particles(self.screen)
+            self.particle_mgr.draw_particles(self.world_surface)
 
             # 8. Dynamic 2D Day/Night Lighting Engine
             light_dict = {
@@ -372,13 +394,39 @@ class Simulation:
                 'W': self.traffic_controller.get_light_state('W')
             }
             self.lighting.render_lighting(
-                self.screen, self.vehicles, light_dict,
+                self.world_surface, self.vehicles, light_dict,
                 self.intersection.light_poles, self.particle_mgr.particles,
                 self.night_factor
             )
 
             # 9. Dynamic Rain, Wind Streaks, Splashes & Wet Road Sheen
-            self.weather.draw(self.screen)
+            self.weather.draw(self.world_surface)
+
+            # Apply Cinematic Mode Transformation
+            if self.cinematic_mode and self.selected_vehicle:
+                # Zoom factor
+                zoom = 1.6
+                cw, ch = SCREEN_WIDTH, SCREEN_HEIGHT
+                
+                # We want to center the screen on selected_vehicle
+                target_x = self.selected_vehicle.x
+                target_y = self.selected_vehicle.y
+                
+                # Scale the world
+                scaled_w = int(cw * zoom)
+                scaled_h = int(ch * zoom)
+                scaled_world = pygame.transform.smoothscale(self.world_surface, (scaled_w, scaled_h))
+                
+                # Calculate blit offset to center target_x, target_y
+                # In scaled coords, the target is at target_x * zoom, target_y * zoom
+                # We want this to be at cw/2, ch/2
+                offset_x = (cw / 2) - (target_x * zoom)
+                offset_y = (ch / 2) - (target_y * zoom)
+                
+                self.screen.fill((0, 0, 0))
+                self.screen.blit(scaled_world, (offset_x, offset_y))
+            else:
+                self.screen.blit(self.world_surface, (0, 0))
 
             # 10. Interactive Telemetry UI HUD & Neural Network Visualizer
             self.hud.draw(self.screen)

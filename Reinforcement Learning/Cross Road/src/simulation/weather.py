@@ -65,6 +65,29 @@ class SplashRipple:
         surface.blit(s, (self.x - int(self.radius), self.y - int(self.radius / 2)))
 
 
+class Puddle:
+    def __init__(self):
+        # Spawn near intersection center (assume screen is 1280x720)
+        self.x = random.uniform(400, 880)
+        self.y = random.uniform(200, 520)
+        self.radius = random.uniform(15, 35)
+        self.life = 0.0
+        self.max_life = random.uniform(5.0, 15.0)
+        self.active = True
+
+    def update(self, dt):
+        self.life += dt
+        if self.life > self.max_life:
+            self.active = False
+
+    def draw(self, surface):
+        alpha = int(120 * math.sin((self.life / self.max_life) * math.pi))
+        alpha = max(0, min(150, alpha))
+        if alpha > 0:
+            s = pygame.Surface((int(self.radius * 2), int(self.radius)), pygame.SRCALPHA)
+            pygame.draw.ellipse(s, (30, 70, 120, alpha), (0, 0, int(self.radius * 2), int(self.radius)))
+            surface.blit(s, (self.x - self.radius, self.y - self.radius / 2))
+
 class WeatherManager:
     def __init__(self):
         self.weather_mode = 'CLEAR' # 'CLEAR', 'RAIN', 'STORM'
@@ -75,6 +98,8 @@ class WeatherManager:
 
         self.raindrops = [RainDrop() for _ in range(250)]
         self.splashes = []
+        self.puddles = []
+        self.puddle_timer = 0.0
         self.rain_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
 
     def set_mode(self, mode):
@@ -115,6 +140,17 @@ class WeatherManager:
             s.update()
         self.splashes = [s for s in self.splashes if s.is_alive]
 
+        # Puddles
+        if self.weather_mode == 'STORM' and self.wetness > 0.8:
+            self.puddle_timer += dt
+            if self.puddle_timer > 2.0 and len(self.puddles) < 5:
+                self.puddles.append(Puddle())
+                self.puddle_timer = 0.0
+        
+        for p in self.puddles:
+            p.update(dt)
+        self.puddles = [p for p in self.puddles if p.active]
+
     def draw(self, surface):
         if self.weather_mode == 'CLEAR' and self.wetness < 0.05 and not self.splashes:
             return
@@ -124,6 +160,10 @@ class WeatherManager:
         # Draw splash ripples
         for s in self.splashes:
             s.draw(self.rain_surface)
+
+        # Draw Puddles
+        for p in self.puddles:
+            p.draw(self.rain_surface)
 
         # Draw falling raindrops
         if self.weather_mode in ('RAIN', 'STORM'):

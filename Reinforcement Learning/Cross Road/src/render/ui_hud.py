@@ -176,7 +176,7 @@ class UIHud:
             lambda: self.sim.spawn_ambulance()
         ))
 
-        # Row 7: Vision Rays, Reset Stats, Save Model
+        # Row 7: Vision Rays, Cinematic, Reset
         y = 461
         self.buttons.append(Button(
             (bx, y, 105, bh), "👁️ Vision (V)",
@@ -184,8 +184,26 @@ class UIHud:
             active_fn=lambda: self.sim.show_vision_rays
         ))
         self.buttons.append(Button(
-            (bx + 110, y, 105, bh), "🗑️ Reset (R)",
+            (bx + 110, y, 105, bh), "🎥 Cinematic",
+            lambda: self.sim.toggle_cinematic(),
+            active_fn=lambda: getattr(self.sim, 'cinematic_mode', False)
+        ))
+        self.buttons.append(Button(
+            (bx + 220, y, 105, bh), "🗑️ Reset (R)",
             lambda: self.sim.reset_statistics()
+        ))
+        
+        # Row 8: V2V, Jaywalkers, Save AI
+        y = 489
+        self.buttons.append(Button(
+            (bx, y, 105, bh), "🛜 V2V Sync",
+            lambda: self.sim.toggle_v2v(),
+            active_fn=lambda: getattr(self.sim, 'v2v_enabled', False)
+        ))
+        self.buttons.append(Button(
+            (bx + 110, y, 105, bh), "🚶 Jaywalkers",
+            lambda: self.sim.toggle_jaywalking(),
+            active_fn=lambda: getattr(self.sim, 'jaywalking_enabled', False)
         ))
         self.buttons.append(Button(
             (bx + 220, y, 105, bh), "💾 Save AI",
@@ -306,7 +324,7 @@ class UIHud:
                 pygame.draw.circle(surface, (255, 255, 255), (int(last_pt[0]), int(last_pt[1])), 3)
 
     def _draw_neural_net_hud(self, surface):
-        nn_top = 495
+        nn_top = 525
         nn_rect = pygame.Rect(self.hud_x + 15, nn_top, self.hud_width - 30, SCREEN_HEIGHT - nn_top - 10)
         pygame.draw.rect(surface, (20, 26, 36), nn_rect, border_radius=6)
         pygame.draw.rect(surface, UI_PANEL_BORDER, nn_rect, width=1, border_radius=6)

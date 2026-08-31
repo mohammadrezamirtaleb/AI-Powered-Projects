@@ -197,6 +197,12 @@ class Vehicle:
         pose = self.route.get_pose_at_distance(self.path_distance)
         if pose is not None:
             self.x, self.y, self.angle = pose
+            
+            # Apply pull over offset (shift right perpendicular to angle)
+            offset = getattr(self, 'pull_over_offset', 0)
+            if offset > 0:
+                self.x += math.cos(self.angle + math.pi/2) * offset
+                self.y += math.sin(self.angle + math.pi/2) * offset
         else:
             self.has_finished = True
 
@@ -224,7 +230,7 @@ class Vehicle:
             self.accel = -self.max_brake * 1.5
             self.is_braking = True
 
-    def update_physics(self, dt=1.0/60.0, friction_coeff=1.0, current_tl_state=None):
+    def update_physics(self, dt=1.0/60.0, friction_coeff=1.0, current_tl_state=None, all_vehicles=None, puddles=None, v2v_enabled=False):
         """Update speed, trajectory, or crash impulse spin-out with proper dt scaling and wet road grip."""
         dt_scale = dt * 60.0
         self.time_alive += dt
@@ -239,6 +245,54 @@ class Vehicle:
             self.angular_vel *= (0.90 ** dt_scale)
             self.speed = max(0.0, self.speed - 0.15 * dt_scale)
             return
+
+        self.v2v_active = self.is_braking
+
+        # V2V Sync & Ambulance Pull-over Logic
+        if all_vehicles:
+            dist_ahead, lead_car = self.get_leading_car_info(all_vehicles)
+            if v2v_enabled and lead_car and dist_ahead < 60.0 and lead_car.v2v_active:
+                self.is_braking = True
+                self.accel = -self.max_brake * 1.5
+                self.v2v_active = True
+                self.v2v_triggered = True
+            else:
+                self.v2v_triggered = False
+
+            # Ambulance check (check if ambulance is behind us within 80px)
+            if not self.is_emergency:
+                ambulance_behind = False
+                for other in all_vehicles:
+                    if other.is_alive and other.is_emergency and other.route.id == self.route.id:
+                        dist_behind = self.path_distance - other.path_distance
+                        if 0 < dist_behind < 80.0:
+                            ambulance_behind = True
+                            break
+                if ambulance_behind:
+                    self.is_braking = True
+                    self.accel = -self.max_brake
+                    # Slightly shift right (pull over) if not already shifted
+                    self.pull_over_offset = getattr(self, 'pull_over_offset', 0)
+                    if self.pull_over_offset < 8.0:
+                        self.pull_over_offset += 0.5 * dt_scale
+                else:
+                    self.pull_over_offset = getattr(self, 'pull_over_offset', 0)
+                    if self.pull_over_offset > 0:
+                        self.pull_over_offset -= 0.5 * dt_scale
+
+        # Puddle Hydroplaning Logic
+        self.is_hydroplaning = False
+        if puddles and self.speed > 2.0:
+            for p in puddles:
+                if math.hypot(self.x - p.x, self.y - p.y) < p.radius:
+                    self.is_hydroplaning = True
+                    # Random slip angle
+                    self.angular_vel = random.uniform(-0.05, 0.05)
+                    self.speed *= 0.95 # lose speed when hydroplaning
+                    break
+
+        if self.is_hydroplaning:
+            self.angle += self.angular_vel * dt_scale
 
         # Integrate acceleration with road surface friction grip
         if self.is_braking:
@@ -427,6 +481,32 @@ class Vehicle:
             if self.right_blinker:
                 pygame.draw.circle(surface, amber_col, (int(front_r[0]), int(front_r[1])), 3)
                 pygame.draw.circle(surface, amber_col, (int(back_r[0]), int(back_r[1])), 3)
+
+        # V2V Wireless Ripples
+        if getattr(self, 'v2v_active', False):
+            ripple_radius = (self.time_alive * 30.0) % 40.0
+            pygame.draw.circle(surface, (0, 200, 255), (int(self.x), int(self.y)), int(ripple_radius), 1)
+            pygame.draw.circle(surface, (0, 200, 255), (int(self.x), int(self.y)), int((ripple_radius + 15) % 40), 1)
+
+        # Thought Vectors (Action Intent)
+        if getattr(self, 'action_name', None):
+            try:
+                font = pygame.font.SysFont("Segoe UI Emoji, Segoe UI", 12)
+                icon = ""
+                if "BRAKE" in self.action_name:
+                    icon = "🛑"
+                elif "ACCEL" in self.action_name:
+                    icon = "🚀"
+                elif getattr(self, 'is_hydroplaning', False):
+                    icon = "💧"
+                elif getattr(self, 'v2v_triggered', False):
+                    icon = "🛜"
+                
+                if icon:
+                    txt = font.render(icon, True, (255, 255, 255))
+                    surface.blit(txt, (int(self.x) - 8, int(self.y) - 20))
+            except:
+                pass # font might not support emoji
 
         # 8. Selection Ring if tracked
         if is_selected:
