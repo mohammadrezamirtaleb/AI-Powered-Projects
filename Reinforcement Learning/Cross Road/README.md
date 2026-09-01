@@ -7,7 +7,7 @@
     <img src="https://img.shields.io/badge/AI-Deep%20RL-green" alt="Deep RL"/>
   </p>
 
-  <img src="assets/banner_animated.gif" alt="Cross Road AI Simulation Banner" width="850" />
+  <video src="assets/Cross%20Road.mp4" controls autoplay muted loop width="850"></video>
   <br><br>
   <i>An advanced, 60 FPS, realistic 4-way intersection simulation powered by Deep Reinforcement Learning.</i>
 </div>
