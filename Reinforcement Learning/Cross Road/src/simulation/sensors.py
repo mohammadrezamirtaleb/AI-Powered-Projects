@@ -102,7 +102,9 @@ class SensorSuite:
 
             # Relative velocity & Time-to-Collision (TTC)
             if closest_car is not None:
-                other_speed = getattr(closest_car, 'speed', 0.0)
+                # If it's a pedestrian, their lateral walk speed doesn't decrease our forward closing speed
+                is_pedestrian = hasattr(closest_car, 'walk_timer')
+                other_speed = 0.0 if is_pedestrian else getattr(closest_car, 'speed', 0.0)
                 closing_speed = car.speed - other_speed
                 rel_v = (car.speed - other_speed) / 6.5 # Positive = closing in
                 if closing_speed > 0.1:

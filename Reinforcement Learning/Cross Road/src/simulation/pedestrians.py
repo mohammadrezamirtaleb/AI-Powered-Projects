@@ -24,7 +24,7 @@ class Pedestrian:
             (60, 200, 120), (200, 100, 220), (230, 130, 40)
         ])
         self.skin_color = (255, 215, 175)
-        self.radius = 4.5
+        self.radius = 7.0
         self.is_alive = True
         self.has_finished = False
         self.walk_timer = random.uniform(0, 10)
@@ -70,8 +70,13 @@ class Pedestrian:
         iy = int(self.y)
 
         # 1. Subtle shadow
-        s_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
-        pygame.draw.circle(s_surf, (0, 0, 0, 80 if not is_night else 130), (8, 8), 5)
+        if not hasattr(Pedestrian, '_shadow_day'):
+            Pedestrian._shadow_day = pygame.Surface((16, 16), pygame.SRCALPHA)
+            pygame.draw.circle(Pedestrian._shadow_day, (0, 0, 0, 80), (8, 8), 5)
+            Pedestrian._shadow_night = pygame.Surface((16, 16), pygame.SRCALPHA)
+            pygame.draw.circle(Pedestrian._shadow_night, (0, 0, 0, 130), (8, 8), 5)
+            
+        s_surf = Pedestrian._shadow_night if is_night else Pedestrian._shadow_day
         surface.blit(s_surf, (ix - 8, iy - 6))
 
         # 2. Swinging shoulders / arms
@@ -108,22 +113,23 @@ class PedestrianManager:
         hrw = self.intersection.half_rw
 
         # Crosswalk crossing paths: (name, start, target)
+        # 4px offset keeps them generally centered in the crosswalk
         self.crosswalk_paths = {
             'N': [
-                ((cx - hrw + 4, cy - hrw - 13), (cx + hrw - 4, cy - hrw - 13)),
-                ((cx + hrw - 4, cy - hrw - 13), (cx - hrw + 4, cy - hrw - 13))
+                ((cx - hrw + 4, cy - hrw - 4), (cx + hrw - 4, cy - hrw - 4)),
+                ((cx + hrw - 4, cy - hrw - 4), (cx - hrw + 4, cy - hrw - 4))
             ],
             'S': [
-                ((cx - hrw + 4, cy + hrw + 13), (cx + hrw - 4, cy + hrw + 13)),
-                ((cx + hrw - 4, cy + hrw + 13), (cx - hrw + 4, cy + hrw + 13))
+                ((cx - hrw + 4, cy + hrw + 4), (cx + hrw - 4, cy + hrw + 4)),
+                ((cx + hrw - 4, cy + hrw + 4), (cx - hrw + 4, cy + hrw + 4))
             ],
             'W': [
-                ((cx - hrw - 13, cy - hrw + 4), (cx - hrw - 13, cy + hrw - 4)),
-                ((cx - hrw - 13, cy + hrw - 4), (cx - hrw - 13, cy - hrw + 4))
+                ((cx - hrw - 4, cy - hrw + 4), (cx - hrw - 4, cy + hrw - 4)),
+                ((cx - hrw - 4, cy + hrw - 4), (cx - hrw - 4, cy - hrw + 4))
             ],
             'E': [
-                ((cx + hrw + 13, cy - hrw + 4), (cx + hrw + 13, cy + hrw - 4)),
-                ((cx + hrw + 13, cy + hrw - 4), (cx + hrw + 13, cy - hrw + 4))
+                ((cx + hrw + 4, cy - hrw + 4), (cx + hrw + 4, cy + hrw - 4)),
+                ((cx + hrw + 4, cy + hrw - 4), (cx + hrw + 4, cy - hrw + 4))
             ]
         }
 
@@ -135,23 +141,33 @@ class PedestrianManager:
 
         # Spawning logic: spawn when corresponding traffic light is RED
         self.spawn_timer -= dt
-        if self.spawn_timer <= 0 and len(self.pedestrians) < 6:
-            self.spawn_timer = random.uniform(2.5, 5.0)
+        if self.spawn_timer <= 0 and len(self.pedestrians) < 15:
+            self.spawn_timer = random.uniform(0.8, 2.0)
 
             # Check which crosswalks have RED lights for vehicle traffic
             eligible = []
-            for cw_name in ['N', 'S', 'E', 'W']:
-                if traffic_controller.get_light_state(cw_name) == 'RED':
-                    eligible.append(cw_name)
+            
+            # Get remaining time in current phase to prevent spawning right before green
+            cur_phase = traffic_controller.current_phase
+            from src.config import PHASE_DURATIONS
+            max_dur = PHASE_DURATIONS.get(cur_phase, 8.0)
+            time_left = max_dur - traffic_controller.timer
+
+            if time_left > 3.0:
+                for cw_name in ['N', 'S', 'E', 'W']:
+                    if traffic_controller.get_light_state(cw_name) == 'RED':
+                        eligible.append(cw_name)
 
             # 25% chance to spawn a jaywalker if enabled
             if jaywalking_enabled and random.random() < 0.25:
-                # Random side to random side
+                # Random side to random side using dynamic intersection bounds
+                cx = self.intersection.cx
+                cy = self.intersection.cy
                 sides = [
-                    (self.intersection.cx - 150, random.uniform(200, 500)),
-                    (self.intersection.cx + 150, random.uniform(200, 500)),
-                    (random.uniform(400, 800), self.intersection.cy - 150),
-                    (random.uniform(400, 800), self.intersection.cy + 150)
+                    (cx - 150, random.uniform(cy - 200, cy + 200)),
+                    (cx + 150, random.uniform(cy - 200, cy + 200)),
+                    (random.uniform(cx - 200, cx + 200), cy - 150),
+                    (random.uniform(cx - 200, cx + 200), cy + 150)
                 ]
                 start_side = random.choice(sides)
                 sides.remove(start_side)

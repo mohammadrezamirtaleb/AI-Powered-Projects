@@ -43,7 +43,7 @@ def get_expert_action(car, traffic_light_state, dist_to_stop, all_vehicles, junc
     # 2. Red/Yellow light stopping logic
     if is_red_or_yellow and dist_to_stop is not None and -5.0 <= dist_to_stop <= 95.0:
         if dist_to_stop < 18.0:
-            return 4 if car.speed > 0.2 else 0 # Full stop
+            return 4 if car.speed > 0.2 else 3 # Full stop (hold brake)
         elif dist_to_stop < 45.0:
             return 3 if car.speed > 1.0 else 0 # Smooth deceleration
         elif dist_to_stop < 85.0 and car.speed > 2.5:
@@ -168,7 +168,9 @@ def train_headless(total_steps=22000, save_path=None):
                             
         # 6. Next State & Rewards (Pass 4)
         for car in vehicles:
-            if car.last_state is None or car.decision_step % ACTION_REPEAT != 0:
+            if car.last_state is None:
+                continue
+            if not car.has_crashed and car.decision_step % ACTION_REPEAT != 0:
                 continue
                 
             tl_state = traffic_controller.get_light_state(car.route.start_dir)

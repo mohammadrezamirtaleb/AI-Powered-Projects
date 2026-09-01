@@ -1,117 +1,118 @@
-# 🚦 شبیه‌سازی چهارراه هوشمند با یادگیری تقویتی عمیق و بینایی ادراکی
-# Autonomous Crossroad Deep Reinforcement Learning Simulation
+# 🚦 Autonomous Crossroad Deep Reinforcement Learning Simulation
 
-یک شبیه‌سازی پیشرفته، ۶۰ فریم و واقع‌گرایانه از تقاطع ۴ راه (چهارراه) با **یادگیری تقویتی عمیق (Dueling DQN با PyTorch و Prioritized Experience Replay)**، **سنسورهای ادراک بینایی و لیدار (LiDAR Raycasting & Time-to-Collision)**، **موتور آب‌وهوای پویا (باران، طوفان، لغزندگی آسفالت)**، **چرخه پویا روز و شب با نورپردازی مخروطی چراغ‌ها**، **۷ کلاس مختلف خودرو (از جمله آمبولانس امدادی با حق تقدم)**، **تردد عابران پیاده روی خط‌کشی**، چراغ‌های انطباقی ترافیک، فیزیک تصادفات واقعی، ذرات جرقه/دود/آتش و خط ترمز روی آسفالت.
+![Cross Road Simulation](assets/banner_animated.gif)
 
----
-
-## 🌟 ویژگی‌های برجسته (Key Highlights)
-
-1. **یادگیری تقویتی عمیق (Deep Reinforcement Learning - Dueling DQN & PER):**
-   - **حالت آشوب اولیه (Untrained Chaos Mode):** ماشین‌ها چراغ قرمز را رد می‌کنند، سرعت غیرمجاز دارند و تصادفات زنجیره‌ای رخ می‌دهد.
-   - **حالت آموزش زنده (Live RL Training):** یادگیری ماشین‌ها به صورت زنده در حین اجرای بازی همراه با بافر بازپخش اولویت‌بندی شده (PER)، نرخ تصمیم‌گیری ۱۵ هرتز (Action Repeat = 4)، یادگیری توقف پشت خط ایست چراغ قرمز و رعایت فاصله ایمنی.
-   - **حالت هوش مصنوعی حرفه‌ای (Master AI Mode):** مدل آموزش‌دیده هوشمند با رانندگی ایمن و روان در تقاطع.
-
-2. **سیستم ادراک و بینایی ماشین (Perception, LiDAR & TTC Sensors):**
-   - سنسور ۹ شعاعی لیدار (۹ LiDAR Raycasts) با تشخیص فاصله و سرعت نسبی خودروها و عابران پیاده
-   - شاخص **Time-to-Collision (TTC)** برای پیش‌بینی زمان باقی‌مانده تا برخورد
-   - سنسور بینایی تشخیص وضعیت چراغ راهنمایی (قرمز، زرد، سبز) و فاصله تا خط ایست
-   - رادار تشخیص تداخل و تراکم در مرکز تقاطع
-
-3. **سیستم آب‌وهوای پویا و لغزندگی جاده (Dynamic Weather & Wet Road Physics):**
-   - چرخه ۳ حالته: ☀️ **آفتابی خشک (Clear)**، 🌧️ **بارانی خیس (Rain)** و ⛈️ **طوفانی شدید (Storm)**
-   - ذرات باران معلق در هوا با زاویه باد و ایجاد ترشح قطرات روی آسفالت (Ground Splash Ripples)
-   - کاهش فیزیکی ضریب اصطکاک لاستیک‌ها در باران ($\mu = 0.52 - 0.68$) و افزایش خط ترمز
-
-4. **تردد عابران پیاده و ۷ کلاس وسایل نقلیه (Pedestrians & Diverse Vehicles):**
-   - عابران پیاده متحرک روی خط‌کشی‌های عابر در فازهای قرمز با انیمیشن تاب خوردن دست‌ها
-   - **۷ کلاس خودرو:** سواری سدان، شاسی‌بلند، کامیون باری سنگین، اتوبوس شهری، خودروی اسپرت، موتورسیکلت و آمبولانس امدادی
-   - آمبولانس با فلاشر چرخان قرمز/آبی و سیستم حق تقدم اضطراری (Emergency Preemption)
-
-5. **چراغ‌های راهنمایی هوشمند و انطباقی (Actuated / Adaptive Signals):**
-   - تنظیم خودکار زمان فاز سبز بر اساس طول صف و تراکم خودروها در هر مسیر جهت باز کردن گره ترافیکی
-
-6. **موتور نورپردازی ۲D و چرخه روز و شب (Day & Night Lighting Engine):**
-   - کَش کردن پس‌زمینه برای دستیابی به حداکثر ۶۰+ FPS روان
-   - انتقال نرم بین روز، غروب آفتاب و نیمه‌شب
-   - نور مخروطی واقعی چراغ‌های جلو خودروها (Headlight Cones) در تاریکی
-   - درخشش نئونی (Bloom Glow) چراغ‌های راهنمایی روی آسفالت
-   - چراغ‌های ترمز قرمز درخشان هنگام ترمزگیری و چشمک‌زن‌های نارنجی راهنما
-   - دوران فیزیکی لاشه خودروها هنگام تصادف (Impulse Spin-out) همراه با ذرات جرقه، دود و آتش
-
-7. **داشبورد سایبری و مصورساز شبکه عصبی (Cyber HUD & Live Neural Visualizer):**
-   - امکان کلیک روی هر خودرو برای مشاهده مغز هوش مصنوعی آن
-   - نمایش زنده لایه‌های شبکه عصبی و نورون‌های فعال (Input -> Dense 1 -> Dense 2 -> Q-Outputs)
-   - نمودار خطی روند لحظه‌ای درصد موفقیت (Success Rate % Trend)
-   - نمودار میله‌ای مقادیر Q-Values و تصمیم فعلی خودرو
-   - آمار لحظه‌ای نرخ موفقیت، تعداد تصادفات، FPS، نرخ اکتشاف ($\epsilon$)، وضعیت آب‌وهوا و ضریب اصطکاک ($\mu$)
+An advanced, 60 FPS, realistic 4-way intersection simulation featuring **Deep Reinforcement Learning (Dueling DQN with PyTorch and Prioritized Experience Replay)**, **Perception and LiDAR sensors (LiDAR Raycasting & Time-to-Collision)**, a **Dynamic Weather Engine (Rain, Storm, Wet Asphalt Physics)**, **Dynamic Day/Night Cycles with Conical Headlights**, **7 Diverse Vehicle Classes (including an Ambulance with Preemption)**, **Pedestrian Crossings**, Adaptive Traffic Lights, Realistic Collision Physics, Spark/Smoke/Fire Particles, and Skid Marks.
 
 ---
 
-## 🎮 کلیدهای کنترلی (Controls & Keybindings)
+## 🌟 Key Highlights
 
-| کلید | عملکرد |
+1. **Deep Reinforcement Learning (Dueling DQN & PER):**
+   - **Untrained Chaos Mode:** Cars run red lights, speed recklessly, and cause pile-ups.
+   - **Live RL Training Mode:** Cars learn in real-time while the simulation runs, using a Prioritized Experience Replay (PER) buffer, 15 Hz decision rate (Action Repeat = 4), learning to stop at red lights and maintain safe following distances.
+   - **Master AI Mode:** Fully trained, highly capable AI models driving safely and smoothly through the intersection.
+
+2. **Machine Perception & Vision (LiDAR & TTC Sensors):**
+   - 9-Ray LiDAR sensor detecting the distance and relative speed of vehicles and pedestrians.
+   - **Time-to-Collision (TTC)** metric predicting time remaining until a potential impact.
+   - Vision sensors to detect traffic light states (Red, Yellow, Green) and distance to the stop line.
+   - Radar for detecting traffic congestion and interference inside the intersection.
+
+3. **Dynamic Weather & Wet Road Physics:**
+   - 3-Phase Cycle: ☀️ **Clear**, 🌧️ **Rain**, and ⛈️ **Storm**.
+   - Wind-affected suspended rain particles and ground splash ripples on the asphalt.
+   - Physical reduction of tire friction coefficients in rain ($\mu = 0.52 - 0.68$) resulting in increased stopping distances.
+
+4. **Pedestrian Crossings & 7 Vehicle Classes:**
+   - Animated pedestrians crossing the street during red traffic phases with swinging arm animations.
+   - **7 Vehicle Classes:** Sedan, SUV, Heavy Truck, City Bus, Sports Car, Motorcycle, and Emergency Ambulance.
+   - Ambulance equipped with flashing red/blue lights and an Emergency Preemption system.
+
+5. **Smart & Adaptive Traffic Lights (Actuated / Adaptive Signals):**
+   - Automatically adjusts green phase duration based on queue length and vehicle density in each lane to dissolve traffic jams.
+
+6. **2D Lighting Engine & Day/Night Cycle:**
+   - Pre-cached background rendering for a smooth 60+ FPS experience.
+   - Smooth transitions between day, sunset, and midnight.
+   - Realistic conical headlights cutting through the darkness.
+   - Neon bloom glow for traffic lights reflecting on the asphalt.
+   - Glowing red brake lights and blinking orange turn signals.
+   - Physical impulse spin-outs during collisions accompanied by sparks, smoke, and fire particles.
+
+7. **Cyber HUD & Live Neural Visualizer:**
+   - Click on any vehicle to inspect its AI brain in real-time.
+   - Live visualization of neural network layers and active neurons (Input -> Dense 1 -> Dense 2 -> Q-Outputs).
+   - Real-time line chart tracking the Success Rate % Trend.
+   - Bar chart displaying Q-Values and the vehicle's current decision probabilities.
+   - Live telemetry stats: Success Rate, Total Crashes, FPS, Exploration Rate ($\epsilon$), Weather State, and Friction Coefficient ($\mu$).
+
+---
+
+## 🎮 Controls & Keybindings
+
+| Key | Action |
 | :--- | :--- |
-| **`Space`** | توقف / ادامه شبیه‌سازی (Pause / Resume) |
-| **`1`** | فعال‌سازی حالت آشوب اولیه (Untrained Chaos) |
-| **`2`** | فعال‌سازی حالت آموزش زنده (Live Training) |
-| **`3`** | فعال‌سازی حالت هوش مصنوعی حرفه‌ای (Master AI) |
-| **`W`** | تغییر وضعیت آب‌وهوا (☀️ آفتابی $\leftrightarrow$ 🌧️ بارانی $\leftrightarrow$ ⛈️ طوفانی) |
-| **`N`** | جابجایی بین حالت روز و شب (Day / Night Toggle) |
-| **`A`** | ظاهر کردن آمبولانس امدادی با حق تقدم (Spawn Ambulance) |
-| **`S`** | ظاهر کردن دستی خودرو جدید (Spawn Vehicle) |
-| **`T`** | تغییر دستی فاز چراغ راهنمایی (Switch Traffic Light) |
-| **`V`** | روشن/خاموش کردن نمایش خطوط بینایی و لیدار (Vision Rays) |
-| **`R`** | ریست کردن آمار و تصادفات (Reset Stats) |
-| **`Click روی ماشین`** | انتخاب و ره‌گیری مغز و سنسورهای خودرو در پنل HUD |
+| **`Space`** | Pause / Resume Simulation |
+| **`1`** | Activate Untrained Chaos Mode |
+| **`2`** | Activate Live Training Mode |
+| **`3`** | Activate Master AI Mode |
+| **`W`** | Toggle Weather (☀️ Clear $\leftrightarrow$ 🌧️ Rain $\leftrightarrow$ ⛈️ Storm) |
+| **`N`** | Day / Night Toggle |
+| **`A`** | Spawn Emergency Ambulance (with Preemption) |
+| **`S`** | Spawn a Random Vehicle |
+| **`T`** | Manually Switch Traffic Light Phase |
+| **`V`** | Toggle Vision Rays (LiDAR/Sensors visibility) |
+| **`R`** | Reset Stats and Crashes |
+| **`Click on Car`** | Select and track the vehicle's brain and sensors in the HUD |
 
 ---
 
-## 🚀 نحوه اجرا (How to Run)
+## 🚀 How to Run
 
-### روش سریع ۱-کلیک (توصیه شده در ویندوز):
-کافیست روی فایل **`run.bat`** دابل کلیک کنید.
+### 1-Click Fast Method (Recommended on Windows):
+Simply double-click the **`run.bat`** file.
 
-### اجرای دستی از طریق ترمینال:
+### Manual Terminal Execution:
 ```powershell
-# اجرای مستقیم شبیه‌ساز گرافیکی
+# Run the graphical simulation
 .\venv\Scripts\python.exe src\main.py
 ```
 
-### اجرای آموزش سریع بدون رابط گرافیکی (Fast Headless Training):
-کافیست روی **`train.bat`** دابل کلیک کنید یا دستور زیر را اجرا نمایید:
+### Fast Headless Training:
+Double-click **`train.bat`** or run the following command in your terminal:
 ```powershell
 .\venv\Scripts\python.exe src\train_headless.py
 ```
 
 ---
 
-## 📁 ساختار پروژه (Project Structure)
+## 📁 Project Structure
 ```
 c:\Users\Apple\Desktop\Cross Road/
-├── venv/                       # محیط مجازی پایتون
-├── requirements.txt            # وابستگی‌ها (PyTorch, Pygame, NumPy, ...)
-├── run.bat                     # اجرای آسان برنامه گرافیکی
-├── train.bat                   # اجرای آسان ترینر سریع
-├── README.md                   # مستندات پروژه
+├── venv/                       # Python Virtual Environment
+├── requirements.txt            # Dependencies (PyTorch, Pygame, NumPy, ...)
+├── run.bat                     # Easy runner for the GUI simulation
+├── train.bat                   # Easy runner for headless training
+├── README.md                   # Project Documentation
 └── src/
-    ├── config.py               # پارامترهای فیزیک، رنگ‌ها، سنسورها و RL
-    ├── main.py                 # حلقه اصلی شبیه‌سازی و رویدادها
-    ├── train_headless.py       # اسکریپت آموزش پرسرعت شبکه عصبی با PER و DQfD
+    ├── config.py               # Physics, colors, sensors, and RL hyperparameters
+    ├── main.py                 # Main simulation loop and event handler
+    ├── train_headless.py       # Fast headless training script using PER & DQfD
     ├── simulation/
-    │   ├── intersection.py     # هندسه ۴ راه، خطوط، مسیرهای منحنی بزیه
-    │   ├── vehicle.py          # فیزیک حرکت، ۷ کلاس خودرو، دوران تصادف، برخورد SAT OBB
-    │   ├── pedestrians.py      # عابران پیاده و تردد روی خط‌کشی‌های عابر
-    │   ├── weather.py          # موتور آب‌وهوای پویا، باران، قطرات و لغزندگی آسفالت
-    │   ├── sensors.py          # لیدار، رادار، بینایی ادراکی و محاسبه TTC
-    │   ├── traffic_controller.py # فازبندی خودکار، انطباقی و حق تقدم آمبولانس
-    │   └── particles.py        # سیستم ذرات جرقه، دود، آتش و خط ترمز
+    │   ├── intersection.py     # 4-way geometry, lanes, bezier curves
+    │   ├── vehicle.py          # Kinematics, 7 classes, crash spin-outs, SAT OBB collisions
+    │   ├── pedestrians.py      # Pedestrians and crosswalk logic
+    │   ├── weather.py          # Dynamic weather engine, rain, ripples, wet asphalt
+    │   ├── sensors.py          # LiDAR, radar, vision perception, TTC calculation
+    │   ├── traffic_controller.py # Automatic phasing, adaptive logic, ambulance preemption
+    │   └── particles.py        # Sparks, smoke, fire, and skid marks system
     ├── ai/
-    │   ├── network.py          # معماری Dueling DQN با PyTorch
-    │   ├── dqn_agent.py        # بافر PER، اکشن‌ها، محاسبه پاداش و بهینه‌سازی
-    │   └── weights/            # فایل وزن‌های ذخیره شده مدل (pretrained_master.pt)
+    │   ├── network.py          # Dueling DQN architecture (PyTorch)
+    │   ├── dqn_agent.py        # PER buffer, action selection, reward calculation, optimizer
+    │   └── weights/            # Pre-trained model weights (pretrained_master.pt)
     └── render/
-        ├── renderer.py         # کَش پس‌زمینه، بافت آسفالت، خط‌کشی و چراغ‌ها
-        ├── lighting.py         # موتور نورپردازی شب و روز و مخروط نور چراغ جلو
-        └── ui_hud.py           # داشبورد تل‌متری، نمودار زنده و مصورساز مغز AI
+        ├── renderer.py         # Background caching, asphalt textures, markings, lights
+        ├── lighting.py         # Day/Night lighting engine, headlight cones
+        └── ui_hud.py           # Telemetry dashboard, live charts, AI brain visualizer
 ```

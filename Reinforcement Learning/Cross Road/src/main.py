@@ -205,6 +205,23 @@ class Simulation:
                     
                     if not v1.is_alive:
                         break
+
+        # Check vehicle-pedestrian collisions
+        for v in self.vehicles:
+            if not v.is_alive:
+                continue
+            for ped in self.pedestrian_mgr.pedestrians:
+                if not ped.is_alive:
+                    continue
+                dist = math.hypot(v.x - ped.x, v.y - ped.y)
+                if dist < (v.length / 2 + ped.radius + 2.0):
+                    if check_sat_collision(v.get_corners(), ped.get_corners()):
+                        v.crash(is_at_fault=True)
+                        ped.is_alive = False
+                        self.stats['total_crashes'] += 1
+                        self.particle_mgr.emit_crash(ped.x, ped.y, intensity=0.8)
+                        break
+
     def step_simulation(self, dt):
         scaled_dt = dt * self.sim_speed
 
@@ -276,7 +293,9 @@ class Simulation:
 
         # 9. Next State, Reward & Transition Storage (Pass 4)
         for car in self.vehicles:
-            if car.last_state is None or car.decision_step % current_action_repeat != 0:
+            if car.last_state is None:
+                continue
+            if not car.has_crashed and car.decision_step % current_action_repeat != 0:
                 continue
 
             tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
@@ -415,10 +434,10 @@ class Simulation:
                 target_x = self.selected_vehicle.x
                 target_y = self.selected_vehicle.y
                 
-                # Scale the world
+                # Scale the world (using fast nearest-neighbor scale instead of smoothscale for FPS)
                 scaled_w = int(cw * zoom)
                 scaled_h = int(ch * zoom)
-                scaled_world = pygame.transform.smoothscale(self.world_surface, (scaled_w, scaled_h))
+                scaled_world = pygame.transform.scale(self.world_surface, (scaled_w, scaled_h))
                 
                 # Calculate blit offset to center target_x, target_y
                 # In scaled coords, the target is at target_x * zoom, target_y * zoom

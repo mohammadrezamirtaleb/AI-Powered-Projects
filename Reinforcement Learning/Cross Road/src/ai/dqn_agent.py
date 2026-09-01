@@ -13,7 +13,7 @@ import torch.optim as optim
 
 from src.config import (
     VISION_STATE_SIZE, NUM_ACTIONS, RL_GAMMA, RL_LR,
-    RL_BATCH_SIZE, RL_BUFFER_CAPACITY, RL_TARGET_UPDATE_FREQ,
+    RL_BATCH_SIZE, RL_BUFFER_CAPACITY,
     RL_EPSILON_START, RL_EPSILON_MIN, RL_EPSILON_DECAY,
     REWARD_CRASH, REWARD_RED_LIGHT_RUN, REWARD_SMOOTH_STOP_RED,
     REWARD_PASS_EVENT, REWARD_PROGRESS, REWARD_TIME_PENALTY, REWARD_JERK_PENALTY
@@ -92,7 +92,7 @@ class DQNAgent:
         # Networks
         self.q_network = DuelingDQN(self.state_dim, self.num_actions).to(self.device)
         self.target_network = DuelingDQN(self.state_dim, self.num_actions).to(self.device)
-        self.update_target_network()
+        self.update_target_network(tau=1.0)
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=RL_LR)
         self.memory = PrioritizedReplayBuffer()
@@ -207,6 +207,7 @@ class DQNAgent:
         self.optimizer.step()
 
         self.train_step_count += 1
+        self.steps_done += 1
         loss_val = float(loss.item())
         self.recent_losses.append(loss_val)
         self.avg_loss = float(np.mean(self.recent_losses))
@@ -261,7 +262,9 @@ class DQNAgent:
         if is_red_or_yellow and is_approaching_stop:
             if vehicle.speed < 0.3 and dist_to_stop < 35.0:
                 # Great job stopping smoothly behind red light
-                reward += REWARD_SMOOTH_STOP_RED * 0.15
+                if not getattr(vehicle, 'rewarded_for_stop', False):
+                    reward += REWARD_SMOOTH_STOP_RED
+                    vehicle.rewarded_for_stop = True
             elif vehicle.speed > 2.2 and dist_to_stop < 30.0:
                 # Approaching red light too fast
                 reward -= 3.0
@@ -304,5 +307,7 @@ class DQNAgent:
         except RuntimeError as e:
             print(f"[AI] Error loading weights, likely dimension mismatch (e.g., added sensors). Starting fresh.")
             return False
-        self.epsilon = checkpoint.get('epsilon', self.epsilon_min)
+        loaded_eps = checkpoint.get('epsilon', self.epsilon_min)
+        # Clamp: if the saved epsilon is lower than new minimum, boost it back up
+        self.epsilon = max(loaded_eps, self.epsilon_min)
         return True

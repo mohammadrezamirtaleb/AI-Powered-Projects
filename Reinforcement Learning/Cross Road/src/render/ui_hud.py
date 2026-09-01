@@ -33,31 +33,34 @@ class Button:
     def draw(self, surface, font):
         is_active = self.active_fn() if self.active_fn else False
 
-        if is_active:
-            bg_col = (0, 120, 212, 255) # Windows 11 Accent Blue
-            border_col = (255, 255, 255, 20)
-            text_col = (255, 255, 255)
-        elif self.is_hovered:
-            bg_col = (255, 255, 255, 20) # Subtle white hover
-            border_col = (255, 255, 255, 15)
-            text_col = (255, 255, 255)
-        else:
-            bg_col = (255, 255, 255, 10) # Rest state acrylic
-            border_col = (255, 255, 255, 10)
-            text_col = (230, 230, 230)
+        state_key = (is_active, self.is_hovered)
+        if not hasattr(self, '_cache'):
+            self._cache = {}
+            
+        if state_key not in self._cache:
+            if is_active:
+                bg_col = (0, 120, 212, 255) # Windows 11 Accent Blue
+                border_col = (255, 255, 255, 20)
+                text_col = (255, 255, 255)
+            elif self.is_hovered:
+                bg_col = (255, 255, 255, 20) # Subtle white hover
+                border_col = (255, 255, 255, 15)
+                text_col = (255, 255, 255)
+            else:
+                bg_col = (255, 255, 255, 10) # Rest state acrylic
+                border_col = (255, 255, 255, 10)
+                text_col = (230, 230, 230)
 
-        # Draw transparent button background
-        btn_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(btn_surf, bg_col, btn_surf.get_rect(), border_radius=4)
-        
-        # Draw border
-        pygame.draw.rect(btn_surf, border_col, btn_surf.get_rect(), width=1, border_radius=4)
-        
-        surface.blit(btn_surf, self.rect.topleft)
+            btn_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(btn_surf, bg_col, btn_surf.get_rect(), border_radius=4)
+            pygame.draw.rect(btn_surf, border_col, btn_surf.get_rect(), width=1, border_radius=4)
+            
+            txt_surf = font.render(self.text, True, text_col)
+            txt_rect = txt_surf.get_rect(center=btn_surf.get_rect().center)
+            btn_surf.blit(txt_surf, txt_rect)
+            self._cache[state_key] = btn_surf
 
-        txt_surf = font.render(self.text, True, text_col)
-        txt_rect = txt_surf.get_rect(center=self.rect.center)
-        surface.blit(txt_surf, txt_rect)
+        surface.blit(self._cache[state_key], self.rect.topleft)
 
 
 class UIHud:
@@ -244,22 +247,22 @@ class UIHud:
     def draw(self, surface):
         self._update_history()
 
-        # 1. Main HUD Background Surface
-        hud_surf = pygame.Surface((self.hud_width, SCREEN_HEIGHT), pygame.SRCALPHA)
-        # Deep cyberpunk translucent glass
-        pygame.draw.rect(hud_surf, (12, 16, 24, 215), (0, 0, self.hud_width, SCREEN_HEIGHT))
-        
-        # Add a subtle gradient on the left edge
-        left_edge = pygame.Surface((4, SCREEN_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.rect(left_edge, (0, 200, 255, 150), left_edge.get_rect())
-        hud_surf.blit(left_edge, (0, 0))
-        
-        pygame.draw.line(hud_surf, (0, 150, 200, 100), (4, 0), (4, SCREEN_HEIGHT), 1)
-        surface.blit(hud_surf, (self.hud_x, 0))
+        if not hasattr(self, 'bg_surf'):
+            self.bg_surf = pygame.Surface((self.hud_width, SCREEN_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.rect(self.bg_surf, (12, 16, 24, 215), (0, 0, self.hud_width, SCREEN_HEIGHT))
+            left_edge = pygame.Surface((4, SCREEN_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.rect(left_edge, (0, 200, 255, 150), left_edge.get_rect())
+            self.bg_surf.blit(left_edge, (0, 0))
+            pygame.draw.line(self.bg_surf, (0, 150, 200, 100), (4, 0), (4, SCREEN_HEIGHT), 1)
 
-        # 2. Header with glowing drop shadow
-        title = self.font_title.render("⚡ AUTONOMOUS CROSSROAD AI", True, UI_ACCENT_CYAN)
-        surface.blit(title, (self.hud_x + 15, 10))
+            self.txt_title = self.font_title.render("⚡ AUTONOMOUS CROSSROAD AI", True, UI_ACCENT_CYAN)
+            self.txt_h1 = self.font_bold.render("LIGHTING & DYNAMIC WEATHER", True, UI_TEXT_MUTED)
+            self.txt_h2 = self.font_bold.render("SIMULATION SPEED", True, UI_TEXT_MUTED)
+            self.txt_h3 = self.font_bold.render("AI OPERATING MODE", True, UI_TEXT_MUTED)
+            self.txt_h4 = self.font_bold.render("REAL-TIME TELEMETRY & CHARTS", True, UI_TEXT_MUTED)
+
+        surface.blit(self.bg_surf, (self.hud_x, 0))
+        surface.blit(self.txt_title, (self.hud_x + 15, 10))
 
         cur_mode = self.sim.agent.mode
         mode_color = UI_ACCENT_RED if cur_mode == 'UNTRAINED' else (UI_ACCENT_GREEN if cur_mode == 'MASTER' else UI_ACCENT_ORANGE)
@@ -267,10 +270,10 @@ class UIHud:
         surface.blit(mode_txt, (self.hud_x + 15, 30))
 
         # 3. Section Labels
-        surface.blit(self.font_bold.render("LIGHTING & DYNAMIC WEATHER", True, UI_TEXT_MUTED), (self.hud_x + 15, 46))
-        surface.blit(self.font_bold.render("SIMULATION SPEED", True, UI_TEXT_MUTED), (self.hud_x + 15, 120))
-        surface.blit(self.font_bold.render("AI OPERATING MODE", True, UI_TEXT_MUTED), (self.hud_x + 15, 164))
-        surface.blit(self.font_bold.render("REAL-TIME TELEMETRY & CHARTS", True, UI_TEXT_MUTED), (self.hud_x + 15, 214))
+        surface.blit(self.txt_h1, (self.hud_x + 15, 46))
+        surface.blit(self.txt_h2, (self.hud_x + 15, 120))
+        surface.blit(self.txt_h3, (self.hud_x + 15, 164))
+        surface.blit(self.txt_h4, (self.hud_x + 15, 214))
 
         # 4. Telemetry & Statistics Card
         card_rect = pygame.Rect(self.hud_x + 15, 230, self.hud_width - 30, 165)
@@ -321,7 +324,9 @@ class UIHud:
         for gy in [y + h * 0.25, y + h * 0.5, y + h * 0.75]:
             pygame.draw.line(surface, (25, 32, 45), (x, gy), (x + w, gy), 1)
 
-        surface.blit(self.font_small.render("Success Rate % Trend", True, UI_ACCENT_GREEN), (x + 6, y + 2))
+        if not hasattr(self, 'txt_trend'):
+            self.txt_trend = self.font_small.render("Success Rate % Trend", True, UI_ACCENT_GREEN)
+        surface.blit(self.txt_trend, (x + 6, y + 2))
 
         if len(self.history_success) > 1:
             pts = []
@@ -347,9 +352,15 @@ class UIHud:
             active = [c for c in self.sim.vehicles if c.is_alive]
             car = active[0] if active else None
 
+        if not hasattr(self, 'txt_no_car'):
+            self.txt_no_car = self.font_main.render("No active vehicle selected", True, UI_TEXT_MUTED)
+            self.txt_q = self.font_bold.render("Action Q-Values (Decision Probabilities):", True, UI_TEXT_MUTED)
+            self.txt_nn = self.font_bold.render("Neural Network Layer Activations:", True, UI_TEXT_MUTED)
+            self.q_lbl_cache = {}
+            self.nn_lbl_cache = {}
+
         if car is None or car.last_state is None:
-            no_txt = self.font_main.render("No active vehicle selected", True, UI_TEXT_MUTED)
-            surface.blit(no_txt, (self.hud_x + 85, nn_top + 100))
+            surface.blit(self.txt_no_car, (self.hud_x + 85, nn_top + 100))
             return
 
         car_info = f"🧠 AI BRAIN INSPECTOR — {car.v_type} #{car.id}"
@@ -373,14 +384,17 @@ class UIHud:
         max_q = max(1.0, float(np.max(q_vals)))
         q_range = max(0.1, max_q - min_q)
 
-        surface.blit(self.font_bold.render("Action Q-Values (Decision Probabilities):", True, UI_TEXT_MUTED), (self.hud_x + 25, nn_top + 42))
+        surface.blit(self.txt_q, (self.hud_x + 25, nn_top + 42))
 
         for idx, (lbl, qv) in enumerate(zip(q_labels, q_vals)):
             by = nn_top + 58 + idx * 18
             is_chosen = (idx == chosen_act)
 
             lbl_col = UI_ACCENT_CYAN if is_chosen else UI_TEXT_MUTED
-            surface.blit(self.font_mono.render(f"{lbl:7s}", True, lbl_col), (self.hud_x + 25, by))
+            
+            if (lbl, is_chosen) not in self.q_lbl_cache:
+                self.q_lbl_cache[(lbl, is_chosen)] = self.font_mono.render(f"{lbl:7s}", True, lbl_col)
+            surface.blit(self.q_lbl_cache[(lbl, is_chosen)], (self.hud_x + 25, by))
 
             norm_w = max(0.05, min(1.0, (qv - min_q) / q_range))
             bar_w = int(norm_w * bar_max_w)
@@ -393,7 +407,7 @@ class UIHud:
             surface.blit(self.font_mono.render(val_str, True, UI_TEXT_WHITE if is_chosen else UI_TEXT_MUTED), (bar_x + bar_max_w + 10, by))
 
         ny = nn_top + 148
-        surface.blit(self.font_bold.render("Neural Network Layer Activations:", True, UI_TEXT_MUTED), (self.hud_x + 25, ny))
+        surface.blit(self.txt_nn, (self.hud_x + 25, ny))
 
         activations = self.sim.agent.get_activations(car.last_state)
         layer_cols = [
@@ -421,7 +435,7 @@ class UIHud:
                         next_y = node_y_start + 10 + next_n * (node_spacing * (num_nodes / max(1, next_nodes)))
                         # Glowing connection line
                         if intensity > 0.3:
-                            pygame.draw.line(surface, (0, 200, 255, 60), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 2)
-                            pygame.draw.line(surface, (100, 240, 255), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 1)
+                            pygame.draw.line(surface, (0, 150, 200), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 2)
+                            pygame.draw.line(surface, (50, 200, 255), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 1)
                         else:
                             pygame.draw.line(surface, (30, 45, 65), (col_x + 3, int(nd_y)), (next_col_x - 3, int(next_y)), 1)

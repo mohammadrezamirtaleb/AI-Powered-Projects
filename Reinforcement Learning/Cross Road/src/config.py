@@ -89,13 +89,12 @@ ACTION_REPEAT = 4  # Agent decides every 4 frames (15 Hz)
 
 # --- Deep RL Hyperparameters ---
 RL_GAMMA = 0.99
-RL_LR = 0.00025
+RL_LR = 0.0005
 RL_BATCH_SIZE = 256
 RL_BUFFER_CAPACITY = 100000
-RL_TARGET_UPDATE_FREQ = 250
 RL_EPSILON_START = 1.0
-RL_EPSILON_MIN = 0.02
-RL_EPSILON_DECAY = 0.99985
+RL_EPSILON_MIN = 0.08   # بالاتر: agent همیشه کمی explore کنه
+RL_EPSILON_DECAY = 0.9998  # کندتر: agent وقت بیشتری برای یادگیری داره
 
 # --- Reward Weights ---
 REWARD_CRASH = -50.0

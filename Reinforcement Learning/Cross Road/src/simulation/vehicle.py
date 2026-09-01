@@ -197,7 +197,7 @@ class Vehicle:
         pose = self.route.get_pose_at_distance(self.path_distance)
         if pose is not None:
             self.x, self.y, self.angle = pose
-            
+            self.angle += getattr(self, 'slip_angle', 0.0)
             # Apply pull over offset (shift right perpendicular to angle)
             offset = getattr(self, 'pull_over_offset', 0)
             if offset > 0:
@@ -284,15 +284,21 @@ class Vehicle:
         self.is_hydroplaning = False
         if puddles and self.speed > 2.0:
             for p in puddles:
-                if math.hypot(self.x - p.x, self.y - p.y) < p.radius:
+                # Multiply Y diff by 2.0 because visual puddle is an ellipse (height = radius/2)
+                if math.hypot(self.x - p.x, (self.y - p.y) * 2.0) < p.radius:
                     self.is_hydroplaning = True
                     # Random slip angle
                     self.angular_vel = random.uniform(-0.05, 0.05)
                     self.speed *= 0.95 # lose speed when hydroplaning
                     break
 
+        if not hasattr(self, 'slip_angle'):
+            self.slip_angle = 0.0
+
         if self.is_hydroplaning:
-            self.angle += self.angular_vel * dt_scale
+            self.slip_angle += self.angular_vel * dt_scale
+        else:
+            self.slip_angle *= 0.9 # decay back to 0
 
         # Integrate acceleration with road surface friction grip
         if self.is_braking:

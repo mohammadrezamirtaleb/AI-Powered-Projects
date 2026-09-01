@@ -50,8 +50,6 @@ class LightingEngine:
         self.width = width
         self.height = height
         self.darkness_surface = pygame.Surface((width, height), pygame.SRCALPHA)
-        self.light_cutout_surface = pygame.Surface((width, height), pygame.SRCALPHA)
-        self.bloom_surface = pygame.Surface((width, height), pygame.SRCALPHA)
 
         # Precomputed gradient glow textures for maximum 60+ FPS performance
         self.headlight_tex = self._create_headlight_texture(length=160, fov_deg=42)
@@ -106,16 +104,14 @@ class LightingEngine:
         ambient_darkness = int(225 * night_factor) # Max 225 alpha darkness
         self.darkness_surface.fill((10, 14, 22, ambient_darkness))
 
-        # Clear light accumulator
-        self.light_cutout_surface.fill((0, 0, 0, 0))
-        self.bloom_surface.fill((0, 0, 0, 0))
+        bloom_ops = [] # Store (surface, rect) to blit after darkness
 
         # 2. Streetlights at 4 corners
         street_light_alpha = int(140 * night_factor)
         for pole_name, pos in light_pole_pos.items():
             r_glow = self.glow_circle_warm
             rect = r_glow.get_rect(center=(int(pos[0]), int(pos[1])))
-            self.light_cutout_surface.blit(r_glow, rect, special_flags=pygame.BLEND_RGBA_ADD)
+            self.darkness_surface.blit(r_glow, rect, special_flags=pygame.BLEND_RGBA_SUB)
 
         # 3. Traffic Light Neon Bloom
         for pole_name, state in traffic_lights_dict.items():
@@ -123,81 +119,66 @@ class LightingEngine:
             if pos is None:
                 continue
 
-            glow_tex = None
             if state == 'RED':
-                glow_tex = self.glow_circle_red
+                color_surf = self.glow_circle_red
             elif state == 'YELLOW':
-                glow_tex = self.glow_circle_yellow
-            elif state == 'GREEN':
-                glow_tex = self.glow_circle_green
+                color_surf = self.glow_circle_yellow
+            else:
+                color_surf = self.glow_circle_green
 
-            if glow_tex is not None:
-                rect = glow_tex.get_rect(center=(int(pos[0]), int(pos[1])))
-                # Strong additive bloom
-                self.bloom_surface.blit(glow_tex, rect, special_flags=pygame.BLEND_RGBA_ADD)
-                self.light_cutout_surface.blit(glow_tex, rect, special_flags=pygame.BLEND_RGBA_ADD)
+            c_rect = color_surf.get_rect(center=(int(pos[0]), int(pos[1])))
+            self.darkness_surface.blit(color_surf, c_rect, special_flags=pygame.BLEND_RGBA_SUB)
+            bloom_ops.append((color_surf, c_rect))
 
-        # 4. Vehicle Headlights & Brake Lights
+        # 4. Vehicle Lights
         for car in vehicles:
-            if not car.is_alive and not car.has_crashed:
+            if not car.is_alive:
                 continue
 
+            # Headlights
             cos_a = math.cos(car.angle)
             sin_a = math.sin(car.angle)
-            hl = car.length / 2.0
-            hw = car.width / 2.0 - 2.5
+            hl = car.length / 2
 
-            # Headlights
             front_cx = car.x + hl * cos_a
             front_cy = car.y + hl * sin_a
 
-            # Use pre-rendered headlight texture, scaled by night factor
             if night_factor > 0:
-                # Car angle is in radians, 0 is right. Pygame rotate expects degrees, counter-clockwise.
-                # In Pygame, 0 degrees is right, 90 is UP.
-                # So we convert radians to degrees and negate.
-                # But wait, our `headlight_tex` points DOWN.
-                # A DOWN texture needs to be rotated so it points to `car.angle`.
-                # DOWN is 90 degrees (or pi/2 radians) in Pygame's y-down coord system.
-                # To point it at car.angle (where 0 is right), we subtract 90 degrees and negate.
-                angle_deg = -math.degrees(car.angle) - 90
+                angle_deg = int(-math.degrees(car.angle) - 90) % 360
                 
-                rotated_hl = pygame.transform.rotate(self.headlight_tex, angle_deg)
+                if not hasattr(self, '_hl_cache'):
+                    self._hl_cache = {}
+                if angle_deg not in self._hl_cache:
+                    self._hl_cache[angle_deg] = pygame.transform.rotate(self.headlight_tex, angle_deg)
                 
-                # Offset to place the tip of the cone exactly at the front bumper
-                # The tip in original texture is at (w//2, 5).
-                # After rotation, its position changes. We can just center it roughly, 
-                # or better, just blit the center of the rotated rect to a shifted point.
+                rotated_hl = self._hl_cache[angle_deg]
+                
                 hl_dist = rotated_hl.get_width() * 0.35
                 shift_x = front_cx + cos_a * hl_dist
                 shift_y = front_cy + sin_a * hl_dist
                 
                 hl_rect = rotated_hl.get_rect(center=(int(shift_x), int(shift_y)))
-                self.light_cutout_surface.blit(rotated_hl, hl_rect, special_flags=pygame.BLEND_RGBA_ADD)
-                self.bloom_surface.blit(rotated_hl, hl_rect, special_flags=pygame.BLEND_RGBA_ADD)
+                self.darkness_surface.blit(rotated_hl, hl_rect, special_flags=pygame.BLEND_RGBA_SUB)
+                bloom_ops.append((rotated_hl, hl_rect))
 
             # Brake light rear glow
             if car.is_braking:
-                back_cx = car.x - hl * cos_a
-                back_cy = car.y - hl * sin_a
-                b_rect = self.glow_brake_red.get_rect(center=(int(back_cx), int(back_cy)))
-                self.bloom_surface.blit(self.glow_brake_red, b_rect, special_flags=pygame.BLEND_RGBA_ADD)
-                self.light_cutout_surface.blit(self.glow_brake_red, b_rect, special_flags=pygame.BLEND_RGBA_ADD)
+                rear_cx = car.x - hl * cos_a
+                rear_cy = car.y - hl * sin_a
+                b_rect = self.glow_brake_red.get_rect(center=(int(rear_cx), int(rear_cy)))
+                self.darkness_surface.blit(self.glow_brake_red, b_rect, special_flags=pygame.BLEND_RGBA_SUB)
 
         # 5. Particle explosion / fire glow in night
         for p in particles:
             if p.p_type == "fire":
                 fg = self.glow_circle_yellow
                 rect = fg.get_rect(center=(int(p.x), int(p.y)))
-                self.bloom_surface.blit(fg, rect, special_flags=pygame.BLEND_RGBA_ADD)
-                self.light_cutout_surface.blit(fg, rect, special_flags=pygame.BLEND_RGBA_ADD)
+                self.darkness_surface.blit(fg, rect, special_flags=pygame.BLEND_RGBA_SUB)
+                bloom_ops.append((fg, rect))
 
-        # 6. Carve illuminated light cutouts out of the darkness mask
-        # Using BLEND_RGBA_SUB to subtract darkness where light is cast
-        self.darkness_surface.blit(self.light_cutout_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
-
-        # 7. Blit darkness mask onto main screen
+        # 6. Blit darkness mask onto main screen
         target_surface.blit(self.darkness_surface, (0, 0))
 
-        # 8. Blit additive bloom for glowing neon lights
-        target_surface.blit(self.bloom_surface, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        # 7. Blit additive bloom for glowing neon lights
+        for b_surf, b_rect in bloom_ops:
+            target_surface.blit(b_surf, b_rect, special_flags=pygame.BLEND_RGBA_ADD)

@@ -67,9 +67,9 @@ class SplashRipple:
 
 class Puddle:
     def __init__(self):
-        # Spawn near intersection center (assume screen is 1280x720)
-        self.x = random.uniform(400, 880)
-        self.y = random.uniform(200, 520)
+        from src.config import CENTER_X, CENTER_Y
+        self.x = random.uniform(CENTER_X - 250, CENTER_X + 250)
+        self.y = random.uniform(CENTER_Y - 200, CENTER_Y + 200)
         self.radius = random.uniform(15, 35)
         self.life = 0.0
         self.max_life = random.uniform(5.0, 15.0)
@@ -155,7 +155,9 @@ class WeatherManager:
         if self.weather_mode == 'CLEAR' and self.wetness < 0.05 and not self.splashes:
             return
 
-        self.rain_surface.fill((0, 0, 0, 0))
+        # Wet road atmospheric sheen
+        sheen_alpha = int(40 * self.wetness) if self.wetness > 0.1 else 0
+        self.rain_surface.fill((30, 60, 100, sheen_alpha))
 
         # Draw splash ripples
         for s in self.splashes:
@@ -170,12 +172,5 @@ class WeatherManager:
             active_drops = 140 if self.weather_mode == 'RAIN' else 250
             for i in range(active_drops):
                 self.raindrops[i].draw(self.rain_surface, self.wind_x)
-
-        # Wet road atmospheric sheen
-        if self.wetness > 0.1:
-            sheen_alpha = int(40 * self.wetness)
-            s_sheen = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-            s_sheen.fill((30, 60, 100, sheen_alpha))
-            surface.blit(s_sheen, (0, 0))
 
         surface.blit(self.rain_surface, (0, 0))
