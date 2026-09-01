@@ -1,118 +1,134 @@
-# 🚦 Autonomous Crossroad Deep Reinforcement Learning Simulation
+<div align="center">
+  <h1>🚦 Autonomous Crossroad AI Simulation</h1>
+  <p>
+    <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" alt="Python"/>
+    <img src="https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white" alt="PyTorch"/>
+    <img src="https://img.shields.io/badge/Pygame-F7DF1E?logo=python&logoColor=black" alt="Pygame"/>
+    <img src="https://img.shields.io/badge/AI-Deep%20RL-green" alt="Deep RL"/>
+  </p>
 
-![Cross Road Simulation](assets/banner_animated.gif)
+  <img src="assets/banner_animated.gif" alt="Cross Road AI Simulation Banner" width="850" />
+  <br><br>
+  <i>An advanced, 60 FPS, realistic 4-way intersection simulation powered by Deep Reinforcement Learning.</i>
+</div>
 
-An advanced, 60 FPS, realistic 4-way intersection simulation featuring **Deep Reinforcement Learning (Dueling DQN with PyTorch and Prioritized Experience Replay)**, **Perception and LiDAR sensors (LiDAR Raycasting & Time-to-Collision)**, a **Dynamic Weather Engine (Rain, Storm, Wet Asphalt Physics)**, **Dynamic Day/Night Cycles with Conical Headlights**, **7 Diverse Vehicle Classes (including an Ambulance with Preemption)**, **Pedestrian Crossings**, Adaptive Traffic Lights, Realistic Collision Physics, Spark/Smoke/Fire Particles, and Skid Marks.
+<br>
 
----
+> **Welcome to the Autonomous Crossroad Simulation!** This project demonstrates a highly complex, self-learning traffic ecosystem where vehicles use neural networks to navigate a busy intersection. From dynamic weather physics to emergency vehicle preemption, everything is simulated in real-time.
 
-## 🌟 Key Highlights
+<br>
 
-1. **Deep Reinforcement Learning (Dueling DQN & PER):**
-   - **Untrained Chaos Mode:** Cars run red lights, speed recklessly, and cause pile-ups.
-   - **Live RL Training Mode:** Cars learn in real-time while the simulation runs, using a Prioritized Experience Replay (PER) buffer, 15 Hz decision rate (Action Repeat = 4), learning to stop at red lights and maintain safe following distances.
-   - **Master AI Mode:** Fully trained, highly capable AI models driving safely and smoothly through the intersection.
+## 🧠 Core Mechanisms & Architecture
 
-2. **Machine Perception & Vision (LiDAR & TTC Sensors):**
-   - 9-Ray LiDAR sensor detecting the distance and relative speed of vehicles and pedestrians.
-   - **Time-to-Collision (TTC)** metric predicting time remaining until a potential impact.
-   - Vision sensors to detect traffic light states (Red, Yellow, Green) and distance to the stop line.
-   - Radar for detecting traffic congestion and interference inside the intersection.
+### 1. Deep Reinforcement Learning (Dueling DQN & PER)
+At the heart of the vehicles is a PyTorch-powered **Dueling Deep Q-Network (DQN)**. 
+* **Prioritized Experience Replay (PER):** Vehicles learn efficiently by prioritizing high-loss experiences (like crashes or near-misses).
+* **Live RL Training:** Vehicles explore and learn in real-time at 15 Hz (Action Repeat = 4). You can watch them evolve from crashing chaotic drivers into safe, rule-abiding agents.
+* **Reward System:** Carefully tuned to punish crashes (-50), running red lights, and excessive jerking, while rewarding smooth stops and passing intersections safely.
 
-3. **Dynamic Weather & Wet Road Physics:**
-   - 3-Phase Cycle: ☀️ **Clear**, 🌧️ **Rain**, and ⛈️ **Storm**.
-   - Wind-affected suspended rain particles and ground splash ripples on the asphalt.
-   - Physical reduction of tire friction coefficients in rain ($\mu = 0.52 - 0.68$) resulting in increased stopping distances.
+### 2. Machine Perception (LiDAR & Radar)
+Vehicles don't cheat; they only "see" what their sensors detect:
+* **9-Ray LiDAR:** Casts rays forward and diagonally to detect the distance and relative velocity of other cars and pedestrians.
+* **Time-to-Collision (TTC):** Calculates the exact time remaining until impact based on closing speeds.
+* **Vision Sensors:** Detects the traffic light state (Red/Yellow/Green) and distance to the stop line.
 
-4. **Pedestrian Crossings & 7 Vehicle Classes:**
-   - Animated pedestrians crossing the street during red traffic phases with swinging arm animations.
-   - **7 Vehicle Classes:** Sedan, SUV, Heavy Truck, City Bus, Sports Car, Motorcycle, and Emergency Ambulance.
-   - Ambulance equipped with flashing red/blue lights and an Emergency Preemption system.
+### 3. Dynamic Weather Engine & Physics
+The simulation goes beyond simple movement by integrating physical constraints:
+* **Weather States:** Cycles between ☀️ Clear, 🌧️ Rain, and ⛈️ Storm.
+* **Friction & Hydroplaning:** Rain significantly lowers the tire friction coefficient ($\mu$), increasing stopping distances. Vehicles hitting puddles at high speed will experience hydroplaning (loss of angular control).
+* **SAT Collisions:** Separating Axis Theorem (OBB) accurately calculates complex polygonal collisions and handles physical impulse spin-outs.
 
-5. **Smart & Adaptive Traffic Lights (Actuated / Adaptive Signals):**
-   - Automatically adjusts green phase duration based on queue length and vehicle density in each lane to dissolve traffic jams.
+### 4. Smart Ecosystem (Pedestrians & Traffic Control)
+* **Adaptive Traffic Lights:** Green phase durations adjust automatically based on real-time vehicle queues to dissolve traffic jams.
+* **Emergency Preemption:** Ambulances force the traffic controller to grant them a green light.
+* **Pedestrians:** Animated pedestrians cross dynamically on crosswalks when traffic is halted.
 
-6. **2D Lighting Engine & Day/Night Cycle:**
-   - Pre-cached background rendering for a smooth 60+ FPS experience.
-   - Smooth transitions between day, sunset, and midnight.
-   - Realistic conical headlights cutting through the darkness.
-   - Neon bloom glow for traffic lights reflecting on the asphalt.
-   - Glowing red brake lights and blinking orange turn signals.
-   - Physical impulse spin-outs during collisions accompanied by sparks, smoke, and fire particles.
+### 5. Cyber HUD & Neural Visualizer
+The built-in UI gives you complete insight into the AI's "brain":
+* Select any vehicle to see a live wireframe of its **Neural Network Layer Activations**.
+* Real-time Q-Value bar charts showing exactly *why* the AI made a specific decision.
+* Sparkline charts tracking the overall success rate across the intersection.
 
-7. **Cyber HUD & Live Neural Visualizer:**
-   - Click on any vehicle to inspect its AI brain in real-time.
-   - Live visualization of neural network layers and active neurons (Input -> Dense 1 -> Dense 2 -> Q-Outputs).
-   - Real-time line chart tracking the Success Rate % Trend.
-   - Bar chart displaying Q-Values and the vehicle's current decision probabilities.
-   - Live telemetry stats: Success Rate, Total Crashes, FPS, Exploration Rate ($\epsilon$), Weather State, and Friction Coefficient ($\mu$).
-
----
+<br>
 
 ## 🎮 Controls & Keybindings
 
 | Key | Action |
 | :--- | :--- |
-| **`Space`** | Pause / Resume Simulation |
-| **`1`** | Activate Untrained Chaos Mode |
-| **`2`** | Activate Live Training Mode |
-| **`3`** | Activate Master AI Mode |
-| **`W`** | Toggle Weather (☀️ Clear $\leftrightarrow$ 🌧️ Rain $\leftrightarrow$ ⛈️ Storm) |
-| **`N`** | Day / Night Toggle |
-| **`A`** | Spawn Emergency Ambulance (with Preemption) |
-| **`S`** | Spawn a Random Vehicle |
-| **`T`** | Manually Switch Traffic Light Phase |
-| **`V`** | Toggle Vision Rays (LiDAR/Sensors visibility) |
-| **`R`** | Reset Stats and Crashes |
-| **`Click on Car`** | Select and track the vehicle's brain and sensors in the HUD |
+| <kbd>Space</kbd> | Pause / Resume Simulation |
+| <kbd>1</kbd> | **Untrained Chaos Mode** (Let them crash!) |
+| <kbd>2</kbd> | **Live Training Mode** (Watch them learn) |
+| <kbd>3</kbd> | **Master AI Mode** (Perfect autonomous driving) |
+| <kbd>W</kbd> | Toggle Weather (☀️ / 🌧️ / ⛈️) |
+| <kbd>N</kbd> | Day / Night Engine Toggle |
+| <kbd>A</kbd> | Spawn Emergency Ambulance |
+| <kbd>S</kbd> | Spawn Random Vehicle |
+| <kbd>T</kbd> | Switch Traffic Light Phase |
+| <kbd>V</kbd> | Toggle Vision Rays & Sensors display |
+| <kbd>R</kbd> | Reset Statistics & Crashes |
+| `Mouse Click` | Click on any car to inspect its Neural Network |
 
----
+<br>
 
 ## 🚀 How to Run
 
-### 1-Click Fast Method (Recommended on Windows):
-Simply double-click the **`run.bat`** file.
+### Option A: 1-Click Fast Method (Windows)
+Simply double-click the **`run.bat`** file to launch the graphical simulation instantly!
 
-### Manual Terminal Execution:
+### Option B: Manual Execution
+1. Activate your virtual environment:
+   ```powershell
+   .\venv\Scripts\activate
+   ```
+2. Install dependencies (if not already done):
+   ```powershell
+   pip install -r requirements.txt
+   ```
+3. Run the main simulation:
+   ```powershell
+   python src\main.py
+   ```
+
+### Option C: Fast Headless Training
+If you want to train the AI rapidly without rendering the graphics, double-click **`train.bat`** or run:
 ```powershell
-# Run the graphical simulation
-.\venv\Scripts\python.exe src\main.py
+python src\train_headless.py
 ```
 
-### Fast Headless Training:
-Double-click **`train.bat`** or run the following command in your terminal:
-```powershell
-.\venv\Scripts\python.exe src\train_headless.py
+<br>
+
+## 📁 Project Structure
+
+```text
+📦 Cross Road
+┣ 📂 assets/                 # Screenshots and animated banners
+┣ 📂 src/
+┃ ┣ 📂 ai/                   # Neural Networks & DQNAgent logic
+┃ ┃ ┣ 📜 network.py          # PyTorch Dueling DQN architecture
+┃ ┃ ┗ 📜 dqn_agent.py        # PER Buffer, optimizer, exploration logic
+┃ ┣ 📂 render/               # 2D Graphics Engine
+┃ ┃ ┣ 📜 lighting.py         # Advanced Day/Night conical light blending
+┃ ┃ ┣ 📜 renderer.py         # Static asset caching and drawing
+┃ ┃ ┗ 📜 ui_hud.py           # Cyber dashboard and Neural Visualizer
+┃ ┣ 📂 simulation/           # Core Logic & Physics
+┃ ┃ ┣ 📜 vehicle.py          # SAT collisions, kinematics, hydroplaning
+┃ ┃ ┣ 📜 pedestrians.py      # Crosswalk logic and animations
+┃ ┃ ┣ 📜 sensors.py          # LiDAR raycasting and TTC math
+┃ ┃ ┣ 📜 traffic_controller.py # Adaptive phase timings and preemption
+┃ ┃ ┣ 📜 weather.py          # Rain droplets, puddles, wet asphalt sheen
+┃ ┃ ┗ 📜 intersection.py     # Map geometry, bezier curve paths
+┃ ┣ 📜 config.py             # Global constants & RL hyperparameters
+┃ ┣ 📜 main.py               # Application entry point and game loop
+┃ ┗ 📜 train_headless.py     # High-speed PyTorch training script
+┣ 📂 tests/                  # Unit tests for collision and physics
+┣ 📂 venv/                   # Python Virtual Environment
+┣ 📜 README.md               # Project documentation
+┣ 📜 requirements.txt        # Python dependencies
+┣ 📜 run.bat                 # 1-Click GUI runner
+┗ 📜 train.bat               # 1-Click Headless Training runner
 ```
 
 ---
-
-## 📁 Project Structure
-```
-c:\Users\Apple\Desktop\Cross Road/
-├── venv/                       # Python Virtual Environment
-├── requirements.txt            # Dependencies (PyTorch, Pygame, NumPy, ...)
-├── run.bat                     # Easy runner for the GUI simulation
-├── train.bat                   # Easy runner for headless training
-├── README.md                   # Project Documentation
-└── src/
-    ├── config.py               # Physics, colors, sensors, and RL hyperparameters
-    ├── main.py                 # Main simulation loop and event handler
-    ├── train_headless.py       # Fast headless training script using PER & DQfD
-    ├── simulation/
-    │   ├── intersection.py     # 4-way geometry, lanes, bezier curves
-    │   ├── vehicle.py          # Kinematics, 7 classes, crash spin-outs, SAT OBB collisions
-    │   ├── pedestrians.py      # Pedestrians and crosswalk logic
-    │   ├── weather.py          # Dynamic weather engine, rain, ripples, wet asphalt
-    │   ├── sensors.py          # LiDAR, radar, vision perception, TTC calculation
-    │   ├── traffic_controller.py # Automatic phasing, adaptive logic, ambulance preemption
-    │   └── particles.py        # Sparks, smoke, fire, and skid marks system
-    ├── ai/
-    │   ├── network.py          # Dueling DQN architecture (PyTorch)
-    │   ├── dqn_agent.py        # PER buffer, action selection, reward calculation, optimizer
-    │   └── weights/            # Pre-trained model weights (pretrained_master.pt)
-    └── render/
-        ├── renderer.py         # Background caching, asphalt textures, markings, lights
-        ├── lighting.py         # Day/Night lighting engine, headlight cones
-        └── ui_hud.py           # Telemetry dashboard, live charts, AI brain visualizer
-```
+<div align="center">
+  <i>Developed with ❤️ for the AI community.</i>
+</div>
