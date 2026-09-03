@@ -1,7 +1,9 @@
 <div align="center">
-  <img src="assets/banner_ai.jpg" alt="Futuristic AI Banner" style="border-radius: 15px; width: 100%;" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/ai-banner.svg">
+    <img src="./assets/ai-banner.svg" alt="AI Powered Projects Banner" width="100%">
+  </picture>
 </div>
-
 <div align="center">
   <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=800&size=45&pause=1000&color=00F0FF&center=true&vCenter=true&width=800&height=100&lines=AI-Powered+Projects;Intelligent+Solutions;Machine+Learning;Computer+Vision" alt="Typing SVG" />
 </div>
