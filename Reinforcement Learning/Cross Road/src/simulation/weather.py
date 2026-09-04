@@ -102,6 +102,9 @@ class WeatherManager:
         self.puddle_timer = 0.0
         self.rain_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
 
+    def set_weather(self, mode):
+        self.set_mode(mode)
+
     def set_mode(self, mode):
         self.weather_mode = mode
         if mode == 'CLEAR':

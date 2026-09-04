@@ -13,42 +13,43 @@ class TrafficController:
         self.is_manual = False
         self.adaptive_mode = False
         self.emergency_override = False
+        self.preemption_cooldown = 0.0
 
     @property
     def current_phase(self):
         return self.phase_keys[self.current_phase_index]
 
     def update(self, dt, vehicles=None):
-        """Update traffic light timer by dt with optional adaptive and emergency control."""
+        """Update traffic light timer by dt with robust adaptive and emergency control."""
         if self.is_manual:
             return
 
-        # 1. Emergency Vehicle Preemption Check
-        if vehicles:
+        if self.preemption_cooldown > 0:
+            self.preemption_cooldown = max(0.0, self.preemption_cooldown - dt)
+
+        # 1. Emergency Vehicle Preemption Check (only if not already in yellow/all-red transition)
+        cur_phase = self.current_phase
+        if vehicles and self.preemption_cooldown <= 0.0 and cur_phase in ('NS_GREEN', 'EW_GREEN'):
             ns_emergency = False
             ew_emergency = False
             for v in vehicles:
                 if v.is_alive and getattr(v, 'is_emergency', False):
-                    if v.route.start_dir in ('N', 'S') and v.get_distance_to_stop_line() > 0:
-                        ns_emergency = True
-                    elif v.route.start_dir in ('E', 'W') and v.get_distance_to_stop_line() > 0:
-                        ew_emergency = True
+                    dist = v.get_distance_to_stop_line()
+                    if 0.0 < dist < 200.0:
+                        if v.route.start_dir in ('N', 'S'):
+                            ns_emergency = True
+                        elif v.route.start_dir in ('E', 'W'):
+                            ew_emergency = True
 
-            if ns_emergency and self.current_phase in ('EW_GREEN', 'ALL_RED_2'):
-                # Force switch to NS Green via Yellow clearance
-                if self.current_phase == 'EW_GREEN':
-                    self.current_phase_index = 4 # EW_YELLOW
-                    self.timer = 0.0
-                elif self.current_phase == 'ALL_RED_2':
-                    self.current_phase_index = 0 # NS_GREEN
-                    self.timer = 0.0
-            elif ew_emergency and self.current_phase in ('NS_GREEN', 'ALL_RED_1'):
-                if self.current_phase == 'NS_GREEN':
-                    self.current_phase_index = 1 # NS_YELLOW
-                    self.timer = 0.0
-                elif self.current_phase == 'ALL_RED_1':
-                    self.current_phase_index = 3 # EW_GREEN
-                    self.timer = 0.0
+            # If emergency is on opposing green, initiate standard yellow clearance
+            if ns_emergency and cur_phase == 'EW_GREEN' and self.timer > 3.0:
+                self.current_phase_index = 4 # EW_YELLOW
+                self.timer = 0.0
+                self.preemption_cooldown = 8.0
+            elif ew_emergency and cur_phase == 'NS_GREEN' and self.timer > 3.0:
+                self.current_phase_index = 1 # NS_YELLOW
+                self.timer = 0.0
+                self.preemption_cooldown = 8.0
 
         self.timer += dt
         cur_phase = self.current_phase

@@ -56,10 +56,16 @@ class SensorSuite:
         front_y = car.y + math.sin(car.angle) * (car.length / 2.0)
         origin = (front_x, front_y)
 
-        # Collect segment edges of all other active vehicles and pedestrians
+        # Collect segment edges of nearby active vehicles and pedestrians (spatial culling)
         other_segments = []
+        max_dist_sq = (self.max_dist + 45.0) ** 2
+
         for other in all_vehicles:
             if other.id == car.id:
+                continue
+            dx = other.x - front_x
+            dy = other.y - front_y
+            if dx * dx + dy * dy > max_dist_sq:
                 continue
             corners = other.get_corners()
             for i in range(4):
@@ -69,12 +75,17 @@ class SensorSuite:
 
         if pedestrians:
             for ped in pedestrians:
-                if ped.is_alive:
-                    p_corners = ped.get_corners()
-                    for i in range(4):
-                        p1 = p_corners[i]
-                        p2 = p_corners[(i + 1) % 4]
-                        other_segments.append((p1, p2, ped))
+                if not ped.is_alive:
+                    continue
+                dx = ped.x - front_x
+                dy = ped.y - front_y
+                if dx * dx + dy * dy > max_dist_sq:
+                    continue
+                p_corners = ped.get_corners()
+                for i in range(4):
+                    p1 = p_corners[i]
+                    p2 = p_corners[(i + 1) % 4]
+                    other_segments.append((p1, p2, ped))
 
         min_ttc_val = 99.0
         for i in range(self.num_rays):

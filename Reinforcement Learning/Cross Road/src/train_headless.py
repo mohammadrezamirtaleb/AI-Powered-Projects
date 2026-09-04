@@ -13,7 +13,7 @@ import numpy as np
 # Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.config import MAX_ACTIVE_CARS, ACTION_REPEAT
+from src.config import MAX_ACTIVE_CARS, ACTION_REPEAT, RL_GAMMA
 from src.simulation.intersection import Intersection
 from src.simulation.traffic_controller import TrafficController
 from src.simulation.vehicle import Vehicle, check_sat_collision
@@ -40,13 +40,13 @@ def get_expert_action(car, traffic_light_state, dist_to_stop, all_vehicles, junc
     elif min_front_dist < 46.0:
         return 3 # BRAKE_MILD
 
-    # 2. Red/Yellow light stopping logic
-    if is_red_or_yellow and dist_to_stop is not None and -5.0 <= dist_to_stop <= 95.0:
-        if dist_to_stop < 18.0:
-            return 4 if car.speed > 0.2 else 3 # Full stop (hold brake)
-        elif dist_to_stop < 45.0:
-            return 3 if car.speed > 1.0 else 0 # Smooth deceleration
-        elif dist_to_stop < 85.0 and car.speed > 2.5:
+    # 2. Red/Yellow light stopping logic (Hold brake until green, never accelerate past stop line)
+    if is_red_or_yellow and dist_to_stop is not None and dist_to_stop <= 120.0 and not car.has_passed_intersection:
+        if dist_to_stop < 22.0:
+            return 4 if car.speed > 0.1 else 3 # Full stop (hold brake firmly)
+        elif dist_to_stop < 55.0:
+            return 4 if car.speed > 1.8 else 3 # Firm deceleration
+        elif dist_to_stop < 105.0 and car.speed > 1.5:
             return 3 # Prepare to slow down
 
     # 3. Left Turn Conflict Zone Yielding (Only yield to straight oncoming)
@@ -113,16 +113,18 @@ def train_headless(total_steps=22000, save_path=None):
             if not car.is_alive:
                 continue
 
-            car.decision_step = getattr(car, 'decision_step', 0) + 1
             tl_state = traffic_controller.get_light_state(car.route.start_dir)
 
-            state = car.sensors.update(
-                vehicles, tl_state,
-                intersection.junction_bounds,
-                pedestrians=pedestrian_mgr.pedestrians
-            )
+            if car.frames_in_action == 0 or car.macro_start_state is None:
+                raw_state = car.sensors.update(
+                    vehicles, tl_state,
+                    intersection.junction_bounds,
+                    pedestrians=pedestrian_mgr.pedestrians
+                )
+                state = car.get_stacked_state(raw_state)
+                car.macro_start_state = state
+                car.accumulated_reward = 0.0
 
-            if car.decision_step % ACTION_REPEAT == 0 or car.last_state is None:
                 # Early bootstrap with expert demonstrations transitioning to pure RL
                 expert_prob = max(0.0, 1.0 - (step / (total_steps * 0.45)))
                 if random.random() < expert_prob:
@@ -130,13 +132,13 @@ def train_headless(total_steps=22000, save_path=None):
                 else:
                     action = agent.select_action(state)
 
+                car.macro_action = action
                 car.apply_action(action)
-                car.last_state = state
 
         # 4. Physics (Pass 2)
         for car in vehicles:
             tl_state = traffic_controller.get_light_state(car.route.start_dir)
-            car.update_physics(dt, current_tl_state=tl_state)
+            car.update_physics(dt, current_tl_state=tl_state, all_vehicles=vehicles, pedestrians=pedestrian_mgr.pedestrians)
 
         # 5. Collision checking with fault attribution (Pass 3)
         n = len(vehicles)
@@ -166,37 +168,57 @@ def train_headless(total_steps=22000, save_path=None):
                         if not v1.is_alive:
                             break
                             
-        # 6. Next State & Rewards (Pass 4)
+        # 6. Step Reward Accumulation & Transition Storage (Pass 4)
         for car in vehicles:
-            if car.last_state is None:
+            if car.macro_start_state is None:
                 continue
-            if not car.has_crashed and car.decision_step % ACTION_REPEAT != 0:
-                continue
-                
-            tl_state = traffic_controller.get_light_state(car.route.start_dir)
-            next_state = car.sensors.update(
-                vehicles, tl_state,
-                intersection.junction_bounds,
-                pedestrians=pedestrian_mgr.pedestrians
-            )
 
-            reward = agent.calculate_reward(car, tl_state, car.get_distance_to_stop_line())
-            car.total_reward += reward
+            tl_state = traffic_controller.get_light_state(car.route.start_dir)
+            step_reward = agent.calculate_reward(car, tl_state, car.get_distance_to_stop_line())
+            car.total_reward += step_reward
+            car.accumulated_reward += (RL_GAMMA ** car.frames_in_action) * step_reward
+            car.frames_in_action += 1
 
             done = car.has_crashed or car.has_finished
-            agent.store_transition(car.last_state, car.last_action, reward, next_state, done)
+            if done:
+                # Do not record innocent non-at-fault vehicle crash as agent failure
+                if car.has_crashed and not getattr(car, 'is_at_fault', True):
+                    car.macro_start_state = None
+                    car.frames_in_action = 0
+                    continue
+
+                raw_next_state = car.sensors.update(
+                    vehicles, tl_state,
+                    intersection.junction_bounds,
+                    pedestrians=pedestrian_mgr.pedestrians
+                )
+                next_state = car.get_stacked_state(raw_next_state)
+                agent.store_transition(car.macro_start_state, car.macro_action, car.accumulated_reward, next_state, True)
+                car.macro_start_state = None
+                car.frames_in_action = 0
+            elif car.frames_in_action >= ACTION_REPEAT:
+                raw_next_state = car.sensors.update(
+                    vehicles, tl_state,
+                    intersection.junction_bounds,
+                    pedestrians=pedestrian_mgr.pedestrians
+                )
+                next_state = car.get_stacked_state(raw_next_state)
+                agent.store_transition(car.macro_start_state, car.macro_action, car.accumulated_reward, next_state, False)
+                car.frames_in_action = 0
+                car.accumulated_reward = 0.0
+                car.macro_start_state = None
 
         # 7. Multi-gradient update steps per simulation step (4 mini-batches per sim frame for faster learning)
         for _ in range(4):
             agent.train_step()
 
-        # 8. Cleanup (Immediate removal of crashed vehicles for headless speed)
+        # 8. Cleanup (Crashed vehicles remain for 3.0s as obstacles, synced with main simulation)
         surviving = []
         for car in vehicles:
             if car.has_finished:
                 stats['passed'] += 1
-            elif car.has_crashed:
-                pass # Immediate removal to prevent ghost clogs!
+            elif car.has_crashed and getattr(car, 'time_since_crash', 0.0) >= 3.0:
+                pass # Removed after 3 seconds so other agents learn to detect and avoid stationary wreckage
             else:
                 surviving.append(car)
         vehicles = surviving

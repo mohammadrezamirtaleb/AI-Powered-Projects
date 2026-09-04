@@ -24,23 +24,51 @@ def lerp_color(c1, c2, t):
     )
 
 class Renderer:
-    def __init__(self, screen):
+    def __init__(self, screen, cx=None, cy=None, width=None, height=None, topnav_h=48, sidebar_w=340):
         self.screen = screen
-        self.cx = CENTER_X
-        self.cy = CENTER_Y
+        self.width = width or SCREEN_WIDTH
+        self.height = height or SCREEN_HEIGHT
+        self.topnav_h = topnav_h
+        self.sidebar_w = sidebar_w
+
+        if cx is None or cy is None:
+            canvas_w = self.width - self.sidebar_w
+            canvas_h = self.height - self.topnav_h
+            self.cx = canvas_w // 2
+            self.cy = self.topnav_h + (canvas_h // 2)
+        else:
+            self.cx = cx
+            self.cy = cy
+
         self.rw = ROAD_WIDTH
         self.hrw = ROAD_WIDTH / 2.0
         self.lw = LANE_WIDTH
         self.ray_surface = None
 
-        # Pre-rendered background caches for maximum 60+ FPS performance
-        self.bg_day_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.bg_night_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.bg_day_surface = pygame.Surface((self.width, self.height))
+        self.bg_night_surface = pygame.Surface((self.width, self.height))
+        self._build_static_background(self.bg_day_surface, night_factor=0.0)
+        self._build_static_background(self.bg_night_surface, night_factor=1.0)
+
+    def update_dimensions(self, screen, cx, cy, width, height, topnav_h=48, sidebar_w=340):
+        self.screen = screen
+        self.cx = cx
+        self.cy = cy
+        self.width = width
+        self.height = height
+        self.topnav_h = topnav_h
+        self.sidebar_w = sidebar_w
+        self.bg_day_surface = pygame.Surface((self.width, self.height))
+        self.bg_night_surface = pygame.Surface((self.width, self.height))
         self._build_static_background(self.bg_day_surface, night_factor=0.0)
         self._build_static_background(self.bg_night_surface, night_factor=1.0)
 
     def _build_static_background(self, surface, night_factor=0.0):
         """Pre-renders grass, sidewalks, asphalt grain, curbs, zebra crossings, and lane markings."""
+        canvas_right = self.width - self.sidebar_w
+        canvas_top = self.topnav_h
+        canvas_bottom = self.height
+
         # 1. Background Grass
         grass_col = lerp_color(COLOR_GRASS_DAY, COLOR_GRASS_NIGHT, night_factor)
         surface.fill(grass_col)
@@ -48,8 +76,8 @@ class Renderer:
         # Subtle grass noise / blades
         random.seed(42)
         for _ in range(600):
-            gx = random.randint(0, SCREEN_WIDTH - 360)
-            gy = random.randint(0, SCREEN_HEIGHT)
+            gx = random.randint(0, canvas_right)
+            gy = random.randint(canvas_top, canvas_bottom)
             if not (self.cx - self.hrw - 30 <= gx <= self.cx + self.hrw + 30 or
                     self.cy - self.hrw - 30 <= gy <= self.cy + self.hrw + 30):
                 blade_c = (max(0, grass_col[0] - 8), min(255, grass_col[1] + 10), max(0, grass_col[2] - 6))
@@ -61,30 +89,30 @@ class Renderer:
         curb_dark = (max(0, sw_col[0] - 30), max(0, sw_col[1] - 30), max(0, sw_col[2] - 30))
         sw_offset = self.hrw + 14
 
-        # Vertical Sidewalks
-        pygame.draw.rect(surface, sw_col, (self.cx - sw_offset, 0, sw_offset * 2, SCREEN_HEIGHT))
-        # Horizontal Sidewalks
-        pygame.draw.rect(surface, sw_col, (0, self.cy - sw_offset, SCREEN_WIDTH - 360, sw_offset * 2))
+        # Vertical Sidewalks (Span from topnav to bottom)
+        pygame.draw.rect(surface, sw_col, (self.cx - sw_offset, canvas_top, sw_offset * 2, canvas_bottom - canvas_top))
+        # Horizontal Sidewalks (Span from left edge to sidebar edge)
+        pygame.draw.rect(surface, sw_col, (0, self.cy - sw_offset, canvas_right, sw_offset * 2))
 
         # Curb bevel highlights
-        pygame.draw.line(surface, curb_light, (self.cx - sw_offset, 0), (self.cx - sw_offset, SCREEN_HEIGHT), 2)
-        pygame.draw.line(surface, curb_dark, (self.cx + sw_offset, 0), (self.cx + sw_offset, SCREEN_HEIGHT), 2)
-        pygame.draw.line(surface, curb_light, (0, self.cy - sw_offset), (SCREEN_WIDTH - 360, self.cy - sw_offset), 2)
-        pygame.draw.line(surface, curb_dark, (0, self.cy + sw_offset), (SCREEN_WIDTH - 360, self.cy + sw_offset), 2)
+        pygame.draw.line(surface, curb_light, (self.cx - sw_offset, canvas_top), (self.cx - sw_offset, canvas_bottom), 2)
+        pygame.draw.line(surface, curb_dark, (self.cx + sw_offset, canvas_top), (self.cx + sw_offset, canvas_bottom), 2)
+        pygame.draw.line(surface, curb_light, (0, self.cy - sw_offset), (canvas_right, self.cy - sw_offset), 2)
+        pygame.draw.line(surface, curb_dark, (0, self.cy + sw_offset), (canvas_right, self.cy + sw_offset), 2)
 
-        # 3. Main Asphalt Roads
+        # 3. Main Asphalt Roads (Extend seamlessly to canvas edges)
         road_col = lerp_color(COLOR_ROAD_DAY, COLOR_ROAD_NIGHT, night_factor)
-        pygame.draw.rect(surface, road_col, (self.cx - self.hrw, 0, self.rw, SCREEN_HEIGHT))
-        pygame.draw.rect(surface, road_col, (0, self.cy - self.hrw, SCREEN_WIDTH - 360, self.rw))
+        pygame.draw.rect(surface, road_col, (self.cx - self.hrw, canvas_top, self.rw, canvas_bottom - canvas_top))
+        pygame.draw.rect(surface, road_col, (0, self.cy - self.hrw, canvas_right, self.rw))
 
         # Asphalt Grain & Texture Speckles
         for _ in range(800):
             rx = random.choice([
                 random.randint(int(self.cx - self.hrw), int(self.cx + self.hrw)),
-                random.randint(0, SCREEN_WIDTH - 360)
+                random.randint(0, canvas_right)
             ])
             ry = random.choice([
-                random.randint(0, SCREEN_HEIGHT),
+                random.randint(canvas_top, canvas_bottom),
                 random.randint(int(self.cy - self.hrw), int(self.cy + self.hrw))
             ])
             grain_val = random.randint(-12, 12)
@@ -99,22 +127,27 @@ class Renderer:
         marking_col = COLOR_ROAD_MARKING
         self._draw_zebra_crossings(surface, marking_col)
 
-        # 5. Stop Lines
+        # 5. Stop Lines (Right-hand traffic, placed BEFORE crosswalks)
         stop_line_thick = 4
-        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx, self.cy - self.hrw), (self.cx + self.hrw, self.cy - self.hrw), stop_line_thick)
-        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx - self.hrw, self.cy + self.hrw), (self.cx, self.cy + self.hrw), stop_line_thick)
-        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx + self.hrw, self.cy - self.hrw), (self.cx + self.hrw, self.cy), stop_line_thick)
-        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx - self.hrw, self.cy), (self.cx - self.hrw, self.cy + self.hrw), stop_line_thick)
+        stop_offset = 36 # 6px gap + 22px crosswalk + 8px stop cushion
+        # North approach (incoming Southbound on x < cx):
+        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx - self.hrw, self.cy - self.hrw - stop_offset), (self.cx, self.cy - self.hrw - stop_offset), stop_line_thick)
+        # South approach (incoming Northbound on x > cx):
+        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx, self.cy + self.hrw + stop_offset), (self.cx + self.hrw, self.cy + self.hrw + stop_offset), stop_line_thick)
+        # East approach (incoming Westbound on y < cy):
+        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx + self.hrw + stop_offset, self.cy - self.hrw), (self.cx + self.hrw + stop_offset, self.cy), stop_line_thick)
+        # West approach (incoming Eastbound on y > cy):
+        pygame.draw.line(surface, COLOR_STOP_LINE, (self.cx - self.hrw - stop_offset, self.cy), (self.cx - self.hrw - stop_offset, self.cy + self.hrw), stop_line_thick)
 
         # 6. Yellow Double Center Dividers
         yellow_col = COLOR_ROAD_YELLOW
-        self._draw_double_yellow_line(surface, (self.cx, 0), (self.cx, self.cy - self.hrw - 18), yellow_col)
-        self._draw_double_yellow_line(surface, (self.cx, self.cy + self.hrw + 18), (self.cx, SCREEN_HEIGHT), yellow_col)
-        self._draw_double_yellow_line_h(surface, (0, self.cy), (self.cx - self.hrw - 18, self.cy), yellow_col)
-        self._draw_double_yellow_line_h(surface, (self.cx + self.hrw + 18, self.cy), (SCREEN_WIDTH - 360, self.cy), yellow_col)
+        self._draw_double_yellow_line(surface, (self.cx, canvas_top), (self.cx, self.cy - self.hrw - stop_offset), yellow_col)
+        self._draw_double_yellow_line(surface, (self.cx, self.cy + self.hrw + stop_offset), (self.cx, canvas_bottom), yellow_col)
+        self._draw_double_yellow_line_h(surface, (0, self.cy), (self.cx - self.hrw - stop_offset, self.cy), yellow_col)
+        self._draw_double_yellow_line_h(surface, (self.cx + self.hrw + stop_offset, self.cy), (canvas_right, self.cy), yellow_col)
 
         # 7. Dashed White Lane Markings
-        self._draw_dashed_lane_markings(surface, marking_col)
+        self._draw_dashed_lane_markings(surface, marking_col, canvas_top, canvas_bottom, canvas_right, stop_offset)
 
         # 8. Lane Turn Arrows painted on asphalt
         self._draw_road_turn_arrows(surface, marking_col)
@@ -139,77 +172,83 @@ class Renderer:
         pygame.draw.line(surface, color, (p1[0], p1[1] - 2), (p2[0], p2[1] - 2), 2)
         pygame.draw.line(surface, color, (p1[0], p1[1] + 2), (p2[0], p2[1] + 2), 2)
 
-    def _draw_dashed_lane_markings(self, surface, color):
+    def _draw_dashed_lane_markings(self, surface, color, canvas_top, canvas_bottom, canvas_right, stop_offset=36):
         dash_len = 16
         dash_gap = 14
+        margin = stop_offset + 4
 
         # North road dashed lines
         for offset in (self.lw, -self.lw):
             x = self.cx + offset
-            y = 0
-            while y < self.cy - self.hrw - 20:
-                pygame.draw.line(surface, color, (x, y), (x, min(self.cy - self.hrw - 20, y + dash_len)), 2)
+            y = canvas_top
+            while y < self.cy - self.hrw - margin:
+                pygame.draw.line(surface, color, (x, y), (x, min(self.cy - self.hrw - margin, y + dash_len)), 2)
                 y += dash_len + dash_gap
 
         # South road dashed lines
         for offset in (-self.lw, self.lw):
             x = self.cx + offset
-            y = self.cy + self.hrw + 20
-            while y < SCREEN_HEIGHT:
-                pygame.draw.line(surface, color, (x, y), (x, min(SCREEN_HEIGHT, y + dash_len)), 2)
+            y = self.cy + self.hrw + margin
+            while y < canvas_bottom:
+                pygame.draw.line(surface, color, (x, y), (x, min(canvas_bottom, y + dash_len)), 2)
                 y += dash_len + dash_gap
 
         # West road dashed lines
         for offset in (self.lw, -self.lw):
             y = self.cy + offset
             x = 0
-            while x < self.cx - self.hrw - 20:
-                pygame.draw.line(surface, color, (x, y), (min(self.cx - self.hrw - 20, x + dash_len), y), 2)
+            while x < self.cx - self.hrw - margin:
+                pygame.draw.line(surface, color, (x, y), (min(self.cx - self.hrw - margin, x + dash_len), y), 2)
                 x += dash_len + dash_gap
 
         # East road dashed lines
         for offset in (-self.lw, self.lw):
             y = self.cy + offset
-            x = self.cx + self.hrw + 20
-            while x < SCREEN_WIDTH - 360:
-                pygame.draw.line(surface, color, (x, y), (min(SCREEN_WIDTH - 360, x + dash_len), y), 2)
+            x = self.cx + self.hrw + margin
+            while x < canvas_right:
+                pygame.draw.line(surface, color, (x, y), (min(canvas_right, x + dash_len), y), 2)
                 x += dash_len + dash_gap
 
     def _draw_zebra_crossings(self, surface, color):
         stripe_w = 6
         stripe_gap = 5
-        crosswalk_depth = 14
+        crosswalk_depth = 22
+        cw_margin = 6
 
-        # North Crosswalk
-        cy_top = self.cy - self.hrw - 6
+        # North Crosswalk (between stop line and intersection)
+        cy_top = self.cy - self.hrw - cw_margin - crosswalk_depth
         for x in range(int(self.cx - self.hrw + 4), int(self.cx + self.hrw - 4), stripe_w + stripe_gap):
-            pygame.draw.rect(surface, color, (x, cy_top - crosswalk_depth, stripe_w, crosswalk_depth))
+            pygame.draw.rect(surface, color, (x, cy_top, stripe_w, crosswalk_depth))
 
-        # South Crosswalk
-        cy_bot = self.cy + self.hrw + 6
+        # South Crosswalk (between stop line and intersection)
+        cy_bot = self.cy + self.hrw + cw_margin
         for x in range(int(self.cx - self.hrw + 4), int(self.cx + self.hrw - 4), stripe_w + stripe_gap):
             pygame.draw.rect(surface, color, (x, cy_bot, stripe_w, crosswalk_depth))
 
-        # West Crosswalk
-        cx_left = self.cx - self.hrw - 6
+        # West Crosswalk (between stop line and intersection)
+        cx_left = self.cx - self.hrw - cw_margin - crosswalk_depth
         for y in range(int(self.cy - self.hrw + 4), int(self.cy + self.hrw - 4), stripe_w + stripe_gap):
-            pygame.draw.rect(surface, color, (cx_left - crosswalk_depth, y, crosswalk_depth, stripe_w))
+            pygame.draw.rect(surface, color, (cx_left, y, crosswalk_depth, stripe_w))
 
-        # East Crosswalk
-        cx_right = self.cx + self.hrw + 6
+        # East Crosswalk (between stop line and intersection)
+        cx_right = self.cx + self.hrw + cw_margin
         for y in range(int(self.cy - self.hrw + 4), int(self.cy + self.hrw - 4), stripe_w + stripe_gap):
             pygame.draw.rect(surface, color, (cx_right, y, crosswalk_depth, stripe_w))
 
     def _draw_road_turn_arrows(self, surface, color):
         """Draws subtle lane arrows painted on asphalt."""
-        self._draw_arrow(surface, (self.cx + 1.5 * self.lw, self.cy - self.hrw - 70), 0, color)
-        self._draw_arrow(surface, (self.cx + 0.5 * self.lw, self.cy - self.hrw - 70), 0, color)
-        self._draw_arrow(surface, (self.cx - 1.5 * self.lw, self.cy + self.hrw + 70), math.pi, color)
-        self._draw_arrow(surface, (self.cx - 0.5 * self.lw, self.cy + self.hrw + 70), math.pi, color)
-        self._draw_arrow(surface, (self.cx - self.hrw - 70, self.cy + 1.5 * self.lw), math.pi / 2, color)
-        self._draw_arrow(surface, (self.cx - self.hrw - 70, self.cy + 0.5 * self.lw), math.pi / 2, color)
-        self._draw_arrow(surface, (self.cx + self.hrw + 70, self.cy - 1.5 * self.lw), -math.pi / 2, color)
-        self._draw_arrow(surface, (self.cx + self.hrw + 70, self.cy - 0.5 * self.lw), -math.pi / 2, color)
+        # North incoming (heading south: angle = math.pi/2)
+        self._draw_arrow(surface, (self.cx - 1.5 * self.lw, self.cy - self.hrw - 70), math.pi / 2, color)
+        self._draw_arrow(surface, (self.cx - 0.5 * self.lw, self.cy - self.hrw - 70), math.pi / 2, color)
+        # South incoming (heading north: angle = -math.pi/2)
+        self._draw_arrow(surface, (self.cx + 1.5 * self.lw, self.cy + self.hrw + 70), -math.pi / 2, color)
+        self._draw_arrow(surface, (self.cx + 0.5 * self.lw, self.cy + self.hrw + 70), -math.pi / 2, color)
+        # West incoming (heading east: angle = 0)
+        self._draw_arrow(surface, (self.cx - self.hrw - 70, self.cy + 1.5 * self.lw), 0, color)
+        self._draw_arrow(surface, (self.cx - self.hrw - 70, self.cy + 0.5 * self.lw), 0, color)
+        # East incoming (heading west: angle = math.pi)
+        self._draw_arrow(surface, (self.cx + self.hrw + 70, self.cy - 1.5 * self.lw), math.pi, color)
+        self._draw_arrow(surface, (self.cx + self.hrw + 70, self.cy - 0.5 * self.lw), math.pi, color)
 
     def _draw_arrow(self, surface, pos, angle, color):
         cos_a = math.cos(angle)

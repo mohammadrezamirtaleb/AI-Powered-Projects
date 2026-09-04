@@ -75,6 +75,10 @@ VISION_STATE_SIZE = (
     1                     # Road friction/wetness (1)
 ) # Total: 29 features
 
+# Frame Stacking for POMDP temporal awareness
+FRAME_STACK_SIZE = 3
+STACKED_STATE_SIZE = VISION_STATE_SIZE * FRAME_STACK_SIZE # 29 * 3 = 87 features
+
 NUM_ACTIONS = 5
 ACTIONS_MAP = {
     0: "COAST",         # Maintain speed with slight drag
@@ -98,8 +102,9 @@ RL_EPSILON_DECAY = 0.9998  # کندتر: agent وقت بیشتری برای یا
 
 # --- Reward Weights ---
 REWARD_CRASH = -50.0
-REWARD_RED_LIGHT_RUN = -30.0
+REWARD_RED_LIGHT_RUN = -100.0
 REWARD_SMOOTH_STOP_RED = +25.0
+REWARD_IDLE_RED = +0.1
 REWARD_PASS_EVENT = +80.0
 REWARD_PROGRESS = +0.5
 REWARD_TIME_PENALTY = -0.04

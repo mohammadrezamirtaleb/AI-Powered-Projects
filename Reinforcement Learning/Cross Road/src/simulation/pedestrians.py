@@ -107,29 +107,33 @@ class PedestrianManager:
         self.spawn_timer = 2.0
         self._init_crosswalk_routes()
 
+    def update_dimensions(self):
+        self._init_crosswalk_routes()
+
     def _init_crosswalk_routes(self):
         cx = self.intersection.cx
         cy = self.intersection.cy
         hrw = self.intersection.half_rw
 
         # Crosswalk crossing paths: (name, start, target)
-        # 4px offset keeps them generally centered in the crosswalk
+        # Walk along the exact centerline of the 22px crosswalk (offset 17px from intersection box)
+        walk_offset = 17
         self.crosswalk_paths = {
             'N': [
-                ((cx - hrw + 4, cy - hrw - 4), (cx + hrw - 4, cy - hrw - 4)),
-                ((cx + hrw - 4, cy - hrw - 4), (cx - hrw + 4, cy - hrw - 4))
+                ((cx - hrw + 4, cy - hrw - walk_offset), (cx + hrw - 4, cy - hrw - walk_offset)),
+                ((cx + hrw - 4, cy - hrw - walk_offset), (cx - hrw + 4, cy - hrw - walk_offset))
             ],
             'S': [
-                ((cx - hrw + 4, cy + hrw + 4), (cx + hrw - 4, cy + hrw + 4)),
-                ((cx + hrw - 4, cy + hrw + 4), (cx - hrw + 4, cy + hrw + 4))
+                ((cx - hrw + 4, cy + hrw + walk_offset), (cx + hrw - 4, cy + hrw + walk_offset)),
+                ((cx + hrw - 4, cy + hrw + walk_offset), (cx - hrw + 4, cy + hrw + walk_offset))
             ],
             'W': [
-                ((cx - hrw - 4, cy - hrw + 4), (cx - hrw - 4, cy + hrw - 4)),
-                ((cx - hrw - 4, cy + hrw - 4), (cx - hrw - 4, cy - hrw + 4))
+                ((cx - hrw - walk_offset, cy - hrw + 4), (cx - hrw - walk_offset, cy + hrw - 4)),
+                ((cx - hrw - walk_offset, cy + hrw - 4), (cx - hrw - walk_offset, cy - hrw + 4))
             ],
             'E': [
-                ((cx + hrw + 4, cy - hrw + 4), (cx + hrw + 4, cy + hrw - 4)),
-                ((cx + hrw + 4, cy + hrw - 4), (cx + hrw + 4, cy - hrw + 4))
+                ((cx + hrw + walk_offset, cy - hrw + 4), (cx + hrw + walk_offset, cy + hrw - 4)),
+                ((cx + hrw + walk_offset, cy + hrw - 4), (cx + hrw + walk_offset, cy - hrw + 4))
             ]
         }
 

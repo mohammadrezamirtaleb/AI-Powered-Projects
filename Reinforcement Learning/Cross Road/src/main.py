@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from src.config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, SIM_NAME,
     SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_MAX, MAX_ACTIVE_CARS,
-    ACTION_REPEAT
+    ACTION_REPEAT, RL_GAMMA
 )
 from src.simulation.intersection import Intersection
 from src.simulation.traffic_controller import TrafficController
@@ -22,29 +22,80 @@ from src.simulation.vehicle import Vehicle, check_sat_collision
 from src.simulation.pedestrians import PedestrianManager
 from src.simulation.weather import WeatherManager
 from src.simulation.particles import ParticleManager
+import threading
+import time
 from src.ai.dqn_agent import DQNAgent
 from src.render.renderer import Renderer
 from src.render.lighting import LightingEngine
 from src.render.ui_hud import UIHud
 from src.train_headless import get_expert_action
 
+class TrainingWorker(threading.Thread):
+    def __init__(self, sim):
+        super().__init__(daemon=True)
+        self.sim = sim
+        self.running = True
+
+    def run(self):
+        try:
+            import torch
+            torch.set_num_threads(2)
+        except Exception:
+            pass
+
+        while self.running:
+            try:
+                if self.sim.agent.mode == 'TRAINING' and len(self.sim.agent.memory) >= 64 and self.sim.sim_speed > 0:
+                    self.sim.agent.train_step()
+                    time.sleep(0.008) # Smooth GIL yielding keeps 60 FPS
+                else:
+                    time.sleep(0.025)
+            except Exception:
+                time.sleep(0.02)
+
 class Simulation:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption(SIM_NAME)
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
-        self.world_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption(f"{SIM_NAME} - [F11 Fullscreen | Esc Quit]")
+        # Create sleek cyber AI window icon
+        icon_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+        pygame.draw.circle(icon_surf, (0, 215, 255), (16, 16), 14)
+        pygame.draw.circle(icon_surf, (20, 25, 35), (16, 16), 10)
+        pygame.draw.circle(icon_surf, (46, 230, 138), (16, 16), 5)
+        pygame.display.set_icon(icon_surf)
+
+        # Automatically detect desktop monitor resolution
+        info = pygame.display.Info()
+        monitor_w = info.current_w if info.current_w > 800 else SCREEN_WIDTH
+        monitor_h = info.current_h if info.current_h > 600 else SCREEN_HEIGHT
+
+        # Automatically size window to fit monitor comfortably without taskbar clipping:
+        self.width = monitor_w
+        self.height = monitor_h - 55 if monitor_h > 700 else monitor_h
+        self.topnav_h = 48
+        self.sidebar_w = 340
+
+        # Windowed resizable mode with native title bar controls
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+        self.world_surface = pygame.Surface((self.width, self.height))
+        self.is_fullscreen = False
         self.clock = pygame.time.Clock()
 
+        # Canvas layout (Simulation area between topnav and sidebar)
+        canvas_w = self.width - self.sidebar_w
+        canvas_h = self.height - self.topnav_h
+        center_x = canvas_w // 2
+        center_y = self.topnav_h + (canvas_h // 2)
+
         # Core Simulation Components
-        self.intersection = Intersection()
+        self.intersection = Intersection(center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
         self.traffic_controller = TrafficController()
         self.weather = WeatherManager()
         self.pedestrian_mgr = PedestrianManager(self.intersection)
         self.particle_mgr = ParticleManager()
         self.agent = DQNAgent()
-        self.renderer = Renderer(self.screen)
-        self.lighting = LightingEngine(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.renderer = Renderer(self.screen, center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
+        self.lighting = LightingEngine(self.width, self.height)
 
         # Vehicles
         self.vehicles = []
@@ -74,17 +125,61 @@ class Simulation:
             'episodes': 0,
         }
 
+        self.training_time = 0.0
+        self.training_episodes = 0
+        self.max_active_cars = MAX_ACTIVE_CARS
+        self.adaptive_lights_enabled = True
+
         # UI HUD
-        self.hud = UIHud(self)
+        self.hud = UIHud(self, self.width, self.height, self.topnav_h, self.sidebar_w)
 
         # Load pretrained weights if available
         weights_path = os.path.join(os.path.dirname(__file__), 'ai', 'weights', 'pretrained_master.pt')
-        if os.path.exists(weights_path) and self.agent.load_weights(weights_path):
-            self.agent.set_mode('MASTER')
-            print(f"[AI] Loaded pre-trained master weights from {weights_path}")
+        if os.path.exists(weights_path):
+            try:
+                self.agent.load_weights(weights_path)
+                self.agent.set_mode('MASTER')
+                print(f"[AI] Loaded pre-trained master weights from {weights_path}")
+            except Exception as e:
+                print(f"[AI] Error loading weights: {e}. Starting fresh.")
+                self.agent.set_mode('TRAINING')
         else:
             self.agent.set_mode('TRAINING')
             print("[AI] Starting with Live Training Mode.")
+
+        # Multi-Threaded Asynchronous Training Worker
+        self.training_worker = TrainingWorker(self)
+        self.training_worker.start()
+
+    def resize_world(self, new_w, new_h):
+        self.width = max(1000, new_w)
+        self.height = max(600, new_h)
+        if not self.is_fullscreen:
+            self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+        self.world_surface = pygame.Surface((self.width, self.height))
+
+        canvas_w = self.width - self.sidebar_w
+        canvas_h = self.height - self.topnav_h
+        center_x = canvas_w // 2
+        center_y = self.topnav_h + (canvas_h // 2)
+
+        self.intersection.update_dimensions(center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
+        self.renderer.update_dimensions(self.screen, center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
+        self.lighting.update_dimensions(self.width, self.height)
+        self.hud.update_dimensions(self.width, self.height, self.topnav_h, self.sidebar_w)
+        self.pedestrian_mgr.update_dimensions()
+        self.spawn_timers = {route.id: random.uniform(0.5, 2.5) for route in self.intersection.routes}
+
+    def set_speed(self, speed):
+        self.sim_speed = speed
+
+    def reset_simulation(self):
+        self.vehicles.clear()
+        self.reset_statistics()
+
+    def toggle_adaptive_lights(self):
+        self.adaptive_lights_enabled = not self.adaptive_lights_enabled
+        self.traffic_controller.adaptive_mode = self.adaptive_lights_enabled
 
     def set_day_night(self, factor):
         self.target_night_factor = factor
@@ -101,6 +196,10 @@ class Simulation:
 
     def toggle_vision_overlay(self):
         self.show_vision_rays = not self.show_vision_rays
+
+    @property
+    def show_vision_overlay(self):
+        return self.show_vision_rays
 
     def toggle_cinematic(self):
         self.cinematic_mode = not self.cinematic_mode
@@ -130,9 +229,10 @@ class Simulation:
         random.shuffle(available_routes)
 
         for route in available_routes:
+            p_start = route.key_points[0]
             spawn_clear = True
             for car in self.vehicles:
-                if car.is_alive and car.route.id == route.id and car.path_distance < 65.0:
+                if math.hypot(car.x - p_start[0], car.y - p_start[1]) < 115.0:
                     spawn_clear = False
                     break
 
@@ -155,9 +255,10 @@ class Simulation:
             if self.spawn_timers[route.id] <= 0:
                 self.spawn_timers[route.id] = random.uniform(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_MAX)
 
+                p_start = route.key_points[0]
                 spawn_clear = True
                 for car in self.vehicles:
-                    if car.is_alive and car.route.id == route.id and car.path_distance < 65.0:
+                    if math.hypot(car.x - p_start[0], car.y - p_start[1]) < 115.0:
                         spawn_clear = False
                         break
 
@@ -167,44 +268,50 @@ class Simulation:
                     self.stats['total_spawned'] += 1
 
     def handle_collisions(self):
-        """Check SAT OBB collisions between all active vehicle pairs with fault attribution."""
+        """Check SAT OBB collisions between all active vehicle pairs with fault attribution and physical anti-overlap."""
         n = len(self.vehicles)
         for i in range(n):
             v1 = self.vehicles[i]
-            if not v1.is_alive:
-                continue
-
             for j in range(i + 1, n):
                 v2 = self.vehicles[j]
-                if not v2.is_alive:
-                    continue
 
                 dist = math.hypot(v1.x - v2.x, v1.y - v2.y)
-                if dist > (v1.length + v2.length):
+                max_rad = (v1.length + v2.length) / 2.0
+                if dist > max_rad * 1.2:
                     continue
 
                 if check_sat_collision(v1.get_corners(), v2.get_corners()):
-                    cx = (v1.x + v2.x) / 2.0
-                    cy = (v1.y + v2.y) / 2.0
+                    # Elastic positional separation to prevent vehicles from overlapping
+                    if dist > 0.01:
+                        sep = max(1.5, (max_rad - dist) * 0.5)
+                        nx = (v1.x - v2.x) / dist
+                        ny = (v1.y - v2.y) / dist
+                        v1.x += nx * sep
+                        v1.y += ny * sep
+                        v2.x -= nx * sep
+                        v2.y -= ny * sep
 
-                    v1_moving = v1.speed > 0.3
-                    v2_moving = v2.speed > 0.3
-                    if v1_moving and not v2_moving:
-                        v1_fault, v2_fault = True, False
-                    elif v2_moving and not v1_moving:
-                        v1_fault, v2_fault = False, True
-                    else:
-                        v1_fault, v2_fault = True, True
+                    if v1.is_alive or v2.is_alive:
+                        cx = (v1.x + v2.x) / 2.0
+                        cy = (v1.y + v2.y) / 2.0
 
-                    v1.crash(is_at_fault=v1_fault)
-                    v2.crash(is_at_fault=v2_fault)
-                    self.stats['total_crashes'] += 1
+                        v1_moving = v1.speed > 0.3
+                        v2_moving = v2.speed > 0.3
+                        if v1_moving and not v2_moving:
+                            v1_fault, v2_fault = True, False
+                        elif v2_moving and not v1_moving:
+                            v1_fault, v2_fault = False, True
+                        else:
+                            v1_fault, v2_fault = True, True
 
-                    self.particle_mgr.emit_crash(cx, cy, intensity=1.5)
-                    self.particle_mgr.add_skid(v1.x, v1.y, v2.x, v2.y)
-                    
-                    if not v1.is_alive:
-                        break
+                        if v1.is_alive:
+                            v1.crash(is_at_fault=v1_fault)
+                        if v2.is_alive:
+                            v2.crash(is_at_fault=v2_fault)
+                        self.stats['total_crashes'] += 1
+
+                        self.particle_mgr.emit_crash(cx, cy, intensity=1.5)
+                        self.particle_mgr.add_skid(v1.x, v1.y, v2.x, v2.y)
 
         # Check vehicle-pedestrian collisions
         for v in self.vehicles:
@@ -228,6 +335,9 @@ class Simulation:
         if self.sim_speed <= 0.0:
             return
 
+        if self.agent.mode == 'TRAINING':
+            self.training_time += scaled_dt
+
         # 1. Update Traffic Lights (with adaptive queue & emergency preemption)
         self.traffic_controller.update(scaled_dt, self.vehicles)
 
@@ -249,32 +359,34 @@ class Simulation:
 
         # 6. Perception & Action (Pass 1)
         grip = self.weather.friction_coeff
-        current_action_repeat = max(1, int(ACTION_REPEAT / max(1.0, self.sim_speed)))
 
         for car in self.vehicles:
             if not car.is_alive:
                 continue
 
-            car.decision_step = getattr(car, 'decision_step', 0) + 1
             tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
 
-            state = car.sensors.update(
-                self.vehicles, tl_state,
-                self.intersection.junction_bounds,
-                friction_coeff=grip,
-                pedestrians=self.pedestrian_mgr.pedestrians
-            )
+            # Deep RL Decision only when starting a new macro-action
+            if car.frames_in_action == 0 or car.macro_start_state is None:
+                raw_state = car.sensors.update(
+                    self.vehicles, tl_state,
+                    self.intersection.junction_bounds,
+                    friction_coeff=grip,
+                    pedestrians=self.pedestrian_mgr.pedestrians
+                )
+                state = car.get_stacked_state(raw_state)
+                car.last_state = state
+                car.macro_start_state = state
+                car.accumulated_reward = 0.0
 
-            # Deep RL Decision 
-            if car.decision_step % current_action_repeat == 0 or car.last_state is None:
                 expert_prob = max(0.0, (self.agent.epsilon - 0.2) / 0.8) if self.agent.mode == 'TRAINING' else 0.0
                 if random.random() < expert_prob:
                     action = get_expert_action(car, tl_state, car.get_distance_to_stop_line(), self.vehicles, self.intersection.junction_bounds)
                 else:
                     action = self.agent.select_action(state)
                 
+                car.macro_action = action
                 car.apply_action(action)
-                car.last_state = state
 
         # 7. Physics Update (Pass 2)
         for car in self.vehicles:
@@ -285,39 +397,57 @@ class Simulation:
                 current_tl_state=tl_state,
                 all_vehicles=self.vehicles,
                 puddles=self.weather.puddles,
-                v2v_enabled=self.v2v_enabled
+                v2v_enabled=self.v2v_enabled,
+                pedestrians=self.pedestrian_mgr.pedestrians
             )
 
         # 8. Collision Checks (Pass 3)
         self.handle_collisions()
 
-        # 9. Next State, Reward & Transition Storage (Pass 4)
+        # 9. Step Reward Accumulation & Transition Storage (Pass 4)
         for car in self.vehicles:
-            if car.last_state is None:
-                continue
-            if not car.has_crashed and car.decision_step % current_action_repeat != 0:
+            if car.macro_start_state is None:
                 continue
 
             tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
-            next_state = car.sensors.update(
-                self.vehicles, tl_state,
-                self.intersection.junction_bounds,
-                friction_coeff=grip,
-                pedestrians=self.pedestrian_mgr.pedestrians
-            )
-
-            reward = self.agent.calculate_reward(car, tl_state, car.get_distance_to_stop_line())
-            car.total_reward += reward
+            step_reward = self.agent.calculate_reward(car, tl_state, car.get_distance_to_stop_line())
+            car.total_reward += step_reward
+            car.accumulated_reward += (RL_GAMMA ** car.frames_in_action) * step_reward
+            car.frames_in_action += 1
 
             done = car.has_crashed or car.has_finished
-            self.agent.store_transition(car.last_state, car.last_action, reward, next_state, done)
+            if done:
+                # Do not record innocent non-at-fault vehicle crash as agent failure
+                if car.has_crashed and not getattr(car, 'is_at_fault', True):
+                    car.macro_start_state = None
+                    car.frames_in_action = 0
+                    continue
 
-        # 8. Deep RL Optimization Step
-        # Scale training steps with sim_speed so it actually learns faster at 10x!
-        # Cap at 5 per frame to prevent FPS dropping to 2.
-        train_loops = min(5, max(1, int(self.sim_speed)))
-        for _ in range(train_loops):
-            self.agent.train_step()
+                raw_next_state = car.sensors.update(
+                    self.vehicles, tl_state,
+                    self.intersection.junction_bounds,
+                    friction_coeff=grip,
+                    pedestrians=self.pedestrian_mgr.pedestrians
+                )
+                next_state = car.get_stacked_state(raw_next_state)
+                self.agent.store_transition(car.macro_start_state, car.macro_action, car.accumulated_reward, next_state, True)
+                car.macro_start_state = None
+                car.frames_in_action = 0
+            elif car.frames_in_action >= ACTION_REPEAT:
+                raw_next_state = car.sensors.update(
+                    self.vehicles, tl_state,
+                    self.intersection.junction_bounds,
+                    friction_coeff=grip,
+                    pedestrians=self.pedestrian_mgr.pedestrians
+                )
+                next_state = car.get_stacked_state(raw_next_state)
+                self.agent.store_transition(car.macro_start_state, car.macro_action, car.accumulated_reward, next_state, False)
+                car.frames_in_action = 0
+                car.accumulated_reward = 0.0
+                car.macro_start_state = None
+
+        # 8. Deep RL Optimization runs asynchronously in TrainingWorker thread!
+        # This keeps the main render loop locked at 60 FPS without stutter.
 
         # 9. Update Particles
         self.particle_mgr.update()
@@ -327,8 +457,9 @@ class Simulation:
         for car in self.vehicles:
             if car.has_finished:
                 self.stats['total_passed'] += 1
-            elif car.has_crashed and car.time_alive > 3.0:
-                pass
+                self.training_episodes += 1
+            elif car.has_crashed and getattr(car, 'time_since_crash', 0.0) >= 3.0:
+                self.training_episodes += 1
             else:
                 surviving.append(car)
         self.vehicles = surviving
@@ -344,9 +475,29 @@ class Simulation:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.VIDEORESIZE:
+                    self.resize_world(event.w, event.h)
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mx, my = event.pos
+                    if mx < self.hud.sidebar_x and my > self.hud.topnav_h:
+                        clicked_car = None
+                        for car in self.vehicles:
+                            if car.is_alive and math.hypot(car.x - mx, car.y - my) < 32.0:
+                                clicked_car = car
+                                break
+                        if clicked_car:
+                            self.selected_vehicle = clicked_car
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
+                    elif event.key == pygame.K_F11:
+                        self.is_fullscreen = not self.is_fullscreen
+                        info = pygame.display.Info()
+                        if self.is_fullscreen:
+                            self.screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
+                            self.resize_world(info.current_w, info.current_h)
+                        else:
+                            self.resize_world(info.current_w, info.current_h - 55)
                     elif event.key == pygame.K_SPACE:
                         self.sim_speed = 0.0 if self.sim_speed > 0 else 1.0
                     elif event.key == pygame.K_1:
@@ -424,34 +575,28 @@ class Simulation:
             # 9. Dynamic Rain, Wind Streaks, Splashes & Wet Road Sheen
             self.weather.draw(self.world_surface)
 
-            # Apply Cinematic Mode Transformation
+            # Apply Cinematic Mode Transformation & HUD rendering
             if self.cinematic_mode and self.selected_vehicle:
-                # Zoom factor
                 zoom = 1.6
                 cw, ch = SCREEN_WIDTH, SCREEN_HEIGHT
-                
-                # We want to center the screen on selected_vehicle
                 target_x = self.selected_vehicle.x
                 target_y = self.selected_vehicle.y
                 
-                # Scale the world (using fast nearest-neighbor scale instead of smoothscale for FPS)
                 scaled_w = int(cw * zoom)
                 scaled_h = int(ch * zoom)
                 scaled_world = pygame.transform.scale(self.world_surface, (scaled_w, scaled_h))
                 
-                # Calculate blit offset to center target_x, target_y
-                # In scaled coords, the target is at target_x * zoom, target_y * zoom
-                # We want this to be at cw/2, ch/2
                 offset_x = (cw / 2) - (target_x * zoom)
                 offset_y = (ch / 2) - (target_y * zoom)
                 
-                self.screen.fill((0, 0, 0))
-                self.screen.blit(scaled_world, (offset_x, offset_y))
+                temp_surf = pygame.Surface((self.width, self.height))
+                temp_surf.fill((0, 0, 0))
+                temp_surf.blit(scaled_world, (offset_x, offset_y))
+                self.hud.draw(temp_surf)
+                self.screen.blit(temp_surf, (0, 0))
             else:
+                self.hud.draw(self.world_surface)
                 self.screen.blit(self.world_surface, (0, 0))
-
-            # 10. Interactive Telemetry UI HUD & Neural Network Visualizer
-            self.hud.draw(self.screen)
 
             pygame.display.flip()
 

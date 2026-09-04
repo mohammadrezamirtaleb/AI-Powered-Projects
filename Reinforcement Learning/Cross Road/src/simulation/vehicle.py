@@ -6,12 +6,13 @@ turn indicator blinking, brake lighting, side mirrors, wheels, and diverse car c
 """
 import math
 import random
+from collections import deque
 import pygame
 import numpy as np
 from src.config import (
     VEHICLE_LENGTH, VEHICLE_WIDTH, MAX_SPEED, MIN_SPEED,
     MAX_ACCEL, MAX_BRAKE, EMERGENCY_BRAKE, FRICTION,
-    ACTIONS_MAP, CAR_COLORS
+    ACTIONS_MAP, CAR_COLORS, FRAME_STACK_SIZE
 )
 from src.simulation.sensors import SensorSuite
 
@@ -107,11 +108,13 @@ def check_sat_collision(corners_a, corners_b):
 
 
 class Vehicle:
-    _id_counter = 0
+    _id_counter = 1
+    _badge_font = None
 
     def __init__(self, route, v_type=None, spawn_speed=2.5, color=None):
+        self.id = id(self)
+        self.vehicle_id = Vehicle._id_counter
         Vehicle._id_counter += 1
-        self.id = Vehicle._id_counter
         self.route = route
 
         # Vehicle Type Selection
@@ -172,6 +175,7 @@ class Vehicle:
         self.passed_reward_granted = False
         self.has_finished = False
         self.time_alive = 0.0
+        self.time_since_crash = 0.0
         self.total_reward = 0.0
 
         # RL Memory & action
@@ -179,6 +183,11 @@ class Vehicle:
         self.last_action = 0
         self.action_name = "COAST"
         self.decision_step = 0
+        self.macro_start_state = None
+        self.macro_action = 0
+        self.accumulated_reward = 0.0
+        self.frames_in_action = 0
+        self.frame_buffer = deque(maxlen=FRAME_STACK_SIZE)
 
         # Blinkers & lighting
         self.turn_signal_timer = 0
@@ -191,6 +200,18 @@ class Vehicle:
 
         # Sensor suite
         self.sensors = SensorSuite(self)
+
+    def get_stacked_state(self, raw_state):
+        """
+        Maintain sliding window of raw sensory frames (k=3) for temporal awareness.
+        Returns concatenated 87-dimensional state vector.
+        """
+        if len(self.frame_buffer) == 0:
+            for _ in range(self.frame_buffer.maxlen):
+                self.frame_buffer.append(raw_state)
+        else:
+            self.frame_buffer.append(raw_state)
+        return np.concatenate(list(self.frame_buffer), axis=0).astype(np.float32)
 
     def update_pose_from_path(self):
         """Update x, y, and angle based on current path_distance along route."""
@@ -230,28 +251,29 @@ class Vehicle:
             self.accel = -self.max_brake * 1.5
             self.is_braking = True
 
-    def update_physics(self, dt=1.0/60.0, friction_coeff=1.0, current_tl_state=None, all_vehicles=None, puddles=None, v2v_enabled=False):
+    def update_physics(self, dt=1.0/60.0, friction_coeff=1.0, current_tl_state=None, all_vehicles=None, puddles=None, v2v_enabled=False, pedestrians=None):
         """Update speed, trajectory, or crash impulse spin-out with proper dt scaling and wet road grip."""
         dt_scale = dt * 60.0
         self.time_alive += dt
         self.turn_signal_timer += 1
 
         if not self.is_alive or self.has_crashed:
+            self.time_since_crash += dt
             self.x += self.crash_vx * dt_scale
             self.y += self.crash_vy * dt_scale
             self.angle += self.angular_vel * dt_scale
-            self.crash_vx *= (0.92 ** dt_scale)
-            self.crash_vy *= (0.92 ** dt_scale)
-            self.angular_vel *= (0.90 ** dt_scale)
-            self.speed = max(0.0, self.speed - 0.15 * dt_scale)
+            self.crash_vx *= (0.85 ** dt_scale)
+            self.crash_vy *= (0.85 ** dt_scale)
+            self.angular_vel *= (0.80 ** dt_scale)
+            self.speed = 0.0
             return
 
         self.v2v_active = self.is_braking
 
         # V2V Sync & Ambulance Pull-over Logic
         if all_vehicles:
-            dist_ahead, lead_car = self.get_leading_car_info(all_vehicles)
-            if v2v_enabled and lead_car and dist_ahead < 60.0 and lead_car.v2v_active:
+            dist_ahead, lead_car, _ = self.get_leading_obstacle(all_vehicles)
+            if v2v_enabled and lead_car and dist_ahead < 60.0 and getattr(lead_car, 'v2v_active', False):
                 self.is_braking = True
                 self.accel = -self.max_brake * 1.5
                 self.v2v_active = True
@@ -271,7 +293,6 @@ class Vehicle:
                 if ambulance_behind:
                     self.is_braking = True
                     self.accel = -self.max_brake
-                    # Slightly shift right (pull over) if not already shifted
                     self.pull_over_offset = getattr(self, 'pull_over_offset', 0)
                     if self.pull_over_offset < 8.0:
                         self.pull_over_offset += 0.5 * dt_scale
@@ -284,12 +305,10 @@ class Vehicle:
         self.is_hydroplaning = False
         if puddles and self.speed > 2.0:
             for p in puddles:
-                # Multiply Y diff by 2.0 because visual puddle is an ellipse (height = radius/2)
                 if math.hypot(self.x - p.x, (self.y - p.y) * 2.0) < p.radius:
                     self.is_hydroplaning = True
-                    # Random slip angle
                     self.angular_vel = random.uniform(-0.05, 0.05)
-                    self.speed *= 0.95 # lose speed when hydroplaning
+                    self.speed *= 0.95
                     break
 
         if not hasattr(self, 'slip_angle'):
@@ -298,7 +317,21 @@ class Vehicle:
         if self.is_hydroplaning:
             self.slip_angle += self.angular_vel * dt_scale
         else:
-            self.slip_angle *= 0.9 # decay back to 0
+            self.slip_angle *= 0.9
+
+        # Intelligent safe headway & collision prevention behind leading vehicle or pedestrian
+        lead_clearance, lead_obj, lead_speed = self.get_leading_obstacle(all_vehicles, pedestrians)
+        if lead_clearance is not None:
+            # Dynamic safe cushion based on vehicle speed
+            min_safe_gap = max(26.0, self.speed * 11.0)
+            if lead_clearance < min_safe_gap:
+                self.is_braking = True
+                braking_urgency = min(1.0, (min_safe_gap - lead_clearance) / 18.0)
+                self.accel = -self.max_brake * (0.85 + 0.35 * braking_urgency)
+                if lead_clearance < 10.0:
+                    # Maintain standstill cushion gap (no bumper overlap!)
+                    self.speed = max(0.0, min(self.speed * 0.2, lead_speed * 0.4))
+                    self.accel = -self.max_brake * 1.5
 
         # Integrate acceleration with road surface friction grip
         if self.is_braking:
@@ -308,6 +341,19 @@ class Vehicle:
 
         self.speed += effective_accel * dt_scale
         self.speed = max(MIN_SPEED, min(self.target_speed, self.speed))
+
+        # Enforce physical stop line compliance on RED / YELLOW lights
+        if current_tl_state in ('RED', 'YELLOW') and not self.has_passed_intersection and not self.is_emergency:
+            dist_to_stop = self.get_distance_to_stop_line()
+            if dist_to_stop is not None:
+                if dist_to_stop <= 6.0:
+                    self.speed = 0.0
+                    self.is_braking = True
+                    self.accel = -self.max_brake
+                    self.path_distance = min(self.path_distance, self.route.stop_line_dist - 4.0)
+                elif dist_to_stop < 55.0 and self.speed > 1.0:
+                    self.is_braking = True
+                    self.accel = -self.max_brake * 1.2
 
         # Move along trajectory
         self.path_distance += self.speed * dt_scale
@@ -322,32 +368,88 @@ class Vehicle:
         """Return distance in pixels along route to the stop line."""
         return self.route.stop_line_dist - self.path_distance
 
+    def get_leading_obstacle(self, all_vehicles, pedestrians=None):
+        """
+        Universal obstacle detection:
+        Finds the closest leading obstacle (vehicle or pedestrian) directly ahead in vehicle's forward corridor.
+        Returns (bumper_clearance_pixels, obstacle_object, obstacle_speed).
+        Correctly accounts for vehicle lengths (large trucks/buses), all routes in approach corridor, stopped wrecks, and pedestrians.
+        """
+        closest_clearance = float('inf')
+        lead_obj = None
+        lead_speed = 0.0
+
+        cos_h = math.cos(self.angle)
+        sin_h = math.sin(self.angle)
+
+        # 1. Scan other vehicles (alive, waiting, or stationary wrecks)
+        if all_vehicles:
+            for other in all_vehicles:
+                if other.id == self.id:
+                    continue
+
+                dx = other.x - self.x
+                dy = other.y - self.y
+                fwd = dx * cos_h + dy * sin_h
+                lat = abs(-dx * sin_h + dy * cos_h)
+
+                # Corridor width: accounts for both vehicles' widths
+                corridor = (self.width + other.width) / 2.0 + 4.0
+
+                if 0.0 < fwd < 160.0 and lat < corridor:
+                    # Bumper-to-bumper clearance in pixels
+                    clearance = fwd - (self.length / 2.0 + other.length / 2.0)
+                    if 0.0 <= clearance < closest_clearance:
+                        closest_clearance = clearance
+                        lead_obj = other
+                        lead_speed = other.speed if (other.is_alive and not other.has_crashed) else 0.0
+
+                # Also scan along same route curve
+                if other.route.id == self.route.id:
+                    dist_ahead = other.path_distance - self.path_distance
+                    if dist_ahead > 0:
+                        clearance = dist_ahead - (self.length / 2.0 + other.length / 2.0)
+                        if 0.0 <= clearance < closest_clearance:
+                            closest_clearance = clearance
+                            lead_obj = other
+                            lead_speed = other.speed if (other.is_alive and not other.has_crashed) else 0.0
+
+        # 2. Scan pedestrians (at crosswalks or in roadway)
+        if pedestrians:
+            for ped in pedestrians:
+                if not ped.is_alive:
+                    continue
+                dx = ped.x - self.x
+                dy = ped.y - self.y
+                fwd = dx * cos_h + dy * sin_h
+                lat = abs(-dx * sin_h + dy * cos_h)
+
+                ped_corridor = (self.width / 2.0) + ped.radius + 6.0
+                if 0.0 < fwd < 100.0 and lat < ped_corridor:
+                    clearance = fwd - (self.length / 2.0 + ped.radius)
+                    if 0.0 <= clearance < closest_clearance:
+                        closest_clearance = clearance
+                        lead_obj = ped
+                        lead_speed = 0.0
+
+        if lead_obj is not None:
+            return closest_clearance, lead_obj, lead_speed
+        return None, None, 0.0
+
     def get_leading_car_info(self, all_vehicles):
-        """Find leading vehicle on same route ahead of this vehicle."""
-        closest_dist = float('inf')
-        lead_car = None
-        for other in all_vehicles:
-            if other.id == self.id or not other.is_alive:
-                continue
-            if other.route.id == self.route.id:
-                dist_ahead = other.path_distance - self.path_distance
-                if 0 < dist_ahead < closest_dist:
-                    closest_dist = dist_ahead
-                    lead_car = other
-        if lead_car is not None:
-            return closest_dist, lead_car
-        return None, None
+        """Backward compatible helper."""
+        c, obj, _ = self.get_leading_obstacle(all_vehicles)
+        return c, obj
 
     def crash(self, is_at_fault=True):
-        """Trigger vehicle crash state with realistic spin-out impulse."""
+        """Trigger vehicle crash state while keeping vehicle in its road lane."""
         self.has_crashed = True
         self.is_at_fault = is_at_fault
         self.is_alive = False
-        self.angular_vel = random.uniform(-0.12, 0.12)
-        impact_dir = self.angle + random.uniform(-0.8, 0.8)
-        impact_speed = max(0.8, self.speed * 0.6)
-        self.crash_vx = math.cos(impact_dir) * impact_speed
-        self.crash_vy = math.sin(impact_dir) * impact_speed
+        self.angular_vel = random.uniform(-0.03, 0.03)
+        # Gentle slide along forward heading, NOT flinging into grass/sidewalk
+        self.crash_vx = math.cos(self.angle) * (self.speed * 0.2)
+        self.crash_vy = math.sin(self.angle) * (self.speed * 0.2)
         self.speed = 0.0
 
     def draw(self, surface, is_night=False, is_selected=False):
@@ -488,36 +590,53 @@ class Vehicle:
                 pygame.draw.circle(surface, amber_col, (int(front_r[0]), int(front_r[1])), 3)
                 pygame.draw.circle(surface, amber_col, (int(back_r[0]), int(back_r[1])), 3)
 
-        # V2V Wireless Ripples
-        if getattr(self, 'v2v_active', False):
-            ripple_radius = (self.time_alive * 30.0) % 40.0
-            pygame.draw.circle(surface, (0, 200, 255), (int(self.x), int(self.y)), int(ripple_radius), 1)
-            pygame.draw.circle(surface, (0, 200, 255), (int(self.x), int(self.y)), int((ripple_radius + 15) % 40), 1)
-
-        # Thought Vectors (Action Intent)
-        if getattr(self, 'action_name', None):
-            try:
-                font = pygame.font.SysFont("Segoe UI, Arial", 10, bold=True)
-                icon = ""
-                if "BRAKE" in self.action_name:
-                    icon = "[BRAKE]"
-                elif "ACCEL" in self.action_name:
-                    icon = "[ACCEL]"
-                elif getattr(self, 'is_hydroplaning', False):
-                    icon = "[SLIP]"
-                elif getattr(self, 'v2v_triggered', False):
-                    icon = "[V2V]"
-                
-                if icon:
-                    # Draw a nice fluent pill background for the text
-                    txt = font.render(icon, True, (255, 255, 255))
-                    txt_w = txt.get_width()
-                    pill_rect = pygame.Rect(int(self.x) - txt_w//2 - 2, int(self.y) - 22, txt_w + 4, 14)
-                    pygame.draw.rect(surface, (40, 40, 40), pill_rect, border_radius=4)
-                    surface.blit(txt, (int(self.x) - txt_w//2, int(self.y) - 21))
-            except:
-                pass
-
-        # 8. Selection Ring if tracked
+        # 8. Selection Aura if tracked
         if is_selected:
-            pygame.draw.circle(surface, (0, 230, 255), (int(self.x), int(self.y)), int(self.length * 0.75), 2)
+            pulse_r = int(self.length * 0.75 + math.sin(self.time_alive * 6.0) * 2)
+            pygame.draw.circle(surface, (0, 215, 255), (int(self.x), int(self.y)), pulse_r, 2)
+            pygame.draw.circle(surface, (0, 160, 255), (int(self.x), int(self.y)), pulse_r + 2, 1)
+
+        # 9. Windows 11 Fluent Real-Time Operation & ID Badge
+        try:
+            if Vehicle._badge_font is None:
+                Vehicle._badge_font = pygame.font.SysFont("Segoe UI, Arial", 10, bold=True)
+
+            # Real-time operation status
+            if self.has_crashed:
+                op_str = "CRASH 💥"
+                badge_bg = (180, 30, 30)
+            elif self.is_emergency:
+                op_str = "EMERGENCY 🚨"
+                badge_bg = (210, 35, 35)
+            elif self.speed < 0.2:
+                op_str = "STOP ⏸"
+                badge_bg = (180, 45, 45)
+            elif self.is_braking:
+                op_str = "BRAKE 🛑"
+                badge_bg = (195, 80, 20)
+            elif self.route.turn_type == 'RIGHT' and self.path_distance > (self.route.stop_line_dist - 15):
+                op_str = "RIGHT ↱"
+                badge_bg = (175, 120, 20)
+            elif self.route.turn_type == 'LEFT' and self.path_distance > (self.route.stop_line_dist - 15):
+                op_str = "LEFT ↰"
+                badge_bg = (175, 120, 20)
+            else:
+                op_str = "DRIVE ▶"
+                badge_bg = (24, 32, 46)
+
+            if is_selected:
+                badge_bg = (0, 140, 240)
+
+            badge_txt = f"#{self.vehicle_id} • {op_str}"
+            txt = Vehicle._badge_font.render(badge_txt, True, (255, 255, 255))
+            tw = txt.get_width()
+            th = txt.get_height()
+            bx = int(self.x) - tw // 2 - 4
+            by = int(self.y) - int(self.length * 0.65) - 10
+            b_rect = pygame.Rect(bx, by, tw + 8, th + 2)
+            
+            pygame.draw.rect(surface, badge_bg, b_rect, border_radius=4)
+            pygame.draw.rect(surface, (255, 255, 255, 75), b_rect, width=1, border_radius=4)
+            surface.blit(txt, (bx + 4, by + 1))
+        except Exception:
+            pass
