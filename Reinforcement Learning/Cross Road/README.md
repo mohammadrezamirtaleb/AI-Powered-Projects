@@ -24,12 +24,12 @@
 - [Overview](#-overview)
 - [City Network Architecture](#-city-network-architecture)
 - [System Architecture & Flowcharts](#-system-architecture--flowcharts)
-  - [Perception & Decision Pipeline](#1-perception--decision-pipeline)
-  - [Multi-Agent Traffic Execution Flow](#2-multi-agent-traffic-execution-flow)
+  - [1. Perception & Decision Pipeline](#1-perception--decision-pipeline)
+  - [2. Multi-Agent Traffic Execution Flow](#2-multi-agent-traffic-execution-flow)
 - [Deep Reinforcement Learning](#-deep-reinforcement-learning)
   - [Observation Space (156-D)](#observation-space-156-d)
   - [Action Space](#action-space)
-  - [Situation-Gated Dueling DQN](#situation-gated-dueling-dqn-architecture)
+  - [Situation-Gated Dueling DQN Architecture](#situation-gated-dueling-dqn-architecture)
   - [Safety Shield & Arbitration Policy](#safety-shield--arbitration-policy)
   - [Reward Shaping](#reward-shaping)
 - [Emergency & Urban Simulation](#-emergency--urban-simulation)
@@ -54,26 +54,40 @@ Longitudinal dynamics are governed by a **Situation-Gated Dueling Deep Q-Network
 
 ## 🏙️ City Network Architecture
 
-The city map models a dual-node urban corridor combining two East–West arterials connected via a shared 3+3 North–South corridor.
+The city map models a dual-node urban corridor combining two East-West arterials connected via a shared 3+3 North-South corridor.
 
-```
-                  [ North Spawn ]
-                         |
-               3+3 Lane NS Arterial
-                         |
-      +------------------+------------------+   Main Avenue (EW Arterial)
-      |    Signalized 4-Way Intersection    |   - Pre-timed / Adaptive Signals
-      |   (Pedestrian Zebras & Stop Lines)  |   - 36 px Upstream Stop Lines
-      +------------------+------------------+
-                         |
-               Connector NS Corridor
-                         |
-      +--------------(       )--------------+   Boulevard (EW Arterial)
-      |         Two-Lane CCW Ring           |   - Yield on Entry (105° Arc Priority)
-      |       Yield-Entry Roundabout        |   - Dual Circulating Rings (Inner / Outer)
-      +------------------+------------------+
-                         |
-                  [ South Spawn ]
+```mermaid
+graph TD
+    subgraph NorthSector ["North Sector"]
+        NSpawn["North Spawn Point<br/>(3-Lane Inbound Approach)"]
+    end
+
+    subgraph Corridor1 ["North-South Arterial"]
+        NS1["3+3 Lane NS Arterial Corridor<br/>(LANE_WIDTH: 26px | Total Width: 156px)"]
+    end
+
+    subgraph Node1 ["Node 1: Main Avenue (EW Arterial)"]
+        Junction4Way["Signalized 4-Way Intersection<br/>- Adaptive / Pre-timed Signal Phasing<br/>- 36px Upstream Physical Stop Lines<br/>- Dynamic Pedestrian Zebra Crosswalks"]
+    end
+
+    subgraph MidCorridor ["Connector Corridor"]
+        NS2["Connector NS Through-Lanes<br/>(Direct Unsignalized Link)"]
+    end
+
+    subgraph Node2 ["Node 2: Boulevard (EW Arterial)"]
+        Roundabout["Yield-Controlled Roundabout<br/>- Dual Circulating Rings (Inner / Outer)<br/>- Strict Counter-Clockwise (CCW) Flow<br/>- 105-Degree Upstream Yield Priority Check"]
+    end
+
+    subgraph SouthSector ["South Sector"]
+        SSpawn["South Spawn Point<br/>(3-Lane Inbound Approach)"]
+    end
+
+    NSpawn --> NS1
+    NS1 --> Junction4Way
+    Junction4Way --> NS2
+    NS2 --> Roundabout
+    Roundabout --> SSpawn
+    SSpawn --> Roundabout
 ```
 
 ### Key Specifications
@@ -99,67 +113,66 @@ The city map models a dual-node urban corridor combining two East–West arteria
 The diagram below illustrates the end-to-end multi-frame perception processing, Situation-Gated neural trunk, value/advantage decomposition, and safety shield mediation:
 
 ```mermaid
-flowchart TD
-    subgraph SENSORS["Perception & State Construction (156-D)"]
-        FrameT["Frame t (52-D)"]
-        FrameT1["Frame t-1 (52-D)"]
-        FrameT2["Frame t-2 (52-D)"]
-        Stack["Temporal Stack (156-D)<br/>9-Ray LiDAR + Signals + Kinematics + City Radar + Situation Slice"]
-        FrameT2 --> Stack
-        FrameT1 --> Stack
-        FrameT --> Stack
+graph TD
+    subgraph Perception ["Perception & State Construction (156-D)"]
+        F0["Frame t-2 (52-D)"]
+        F1["Frame t-1 (52-D)"]
+        F2["Frame t (52-D)"]
+        Stack["Temporal State Stack (156-D)<br/>LiDAR (54) + Signals (15) + Kinematics (12) + City Radar (33) + Situation (42)"]
+        F0 --> Stack
+        F1 --> Stack
+        F2 --> Stack
     end
 
-    subgraph NETWORK["Situation-Gated Dueling DQN Network"]
-        Split["Input Split"]
+    subgraph DQN ["Situation-Gated Dueling DQN"]
+        Split["Input Splitter"]
         Stack --> Split
-        
-        LidarEnc["LiDAR Stream Encoder<br/>(128 → 96 Linear + LayerNorm + Mish)"]
-        SemEnc["Semantic Stream Encoder<br/>(128 → 96 Linear + LayerNorm + Mish)"]
-        SitGate["Situation Gating Block<br/>(Linear → Sigmoid from latest 14-D slice)"]
-        
-        Split -->|LiDAR Stack (54-D)| LidarEnc
-        Split -->|Semantic Stack (102-D)| SemEnc
-        Split -->|Situation Slice (14-D)| SitGate
-        
-        GatedSem["Gated Semantics<br/>(Semantic Embedding ⊙ Gate)"]
-        SemEnc --> GatedSem
-        SitGate --> GatedSem
-        
-        Fuse["Feature Fusion Trunk (192 → 192)"]
-        LidarEnc --> Fuse
-        GatedSem --> Fuse
-        
-        ValHead["State Value Stream V(s)<br/>(192 → 96 → 1)"]
-        AdvHead["Advantage Stream A(s,a)<br/>(192 → 96 → 5)"]
-        Fuse --> ValHead
-        Fuse --> AdvHead
-        
-        QCombine["Q-Value Aggregator<br/>Q(s,a) = V(s) + (A(s,a) - mean(A))"]
-        ValHead --> QCombine
-        AdvHead --> QCombine
+
+        LidarStream["LiDAR Encoder<br/>(Linear 128 to 96 + LayerNorm + Mish)"]
+        SemStream["Semantic Encoder<br/>(Linear 128 to 96 + LayerNorm + Mish)"]
+        GateBlock["Situation Gate<br/>(Linear 14 to 96 + Sigmoid)"]
+
+        Split -->|"LiDAR Stack (54-D)"| LidarStream
+        Split -->|"Semantic Stack (102-D)"| SemStream
+        Split -->|"Situation Slice (14-D)"| GateBlock
+
+        GatedSem["Gated Semantics<br/>(Semantic Embedding x Situation Gate)"]
+        SemStream --> GatedSem
+        GateBlock --> GatedSem
+
+        Trunk["Fusion Trunk<br/>(Linear 192 to 192)"]
+        LidarStream --> Trunk
+        GatedSem --> Trunk
+
+        ValStream["Value Head V(s)<br/>(192 to 96 to 1)"]
+        AdvStream["Advantage Head A(s,a)<br/>(192 to 96 to 5)"]
+        Trunk --> ValStream
+        Trunk --> AdvStream
+
+        QCombine["Q-Value Aggregator<br/>Q(s,a) = V(s) + (A(s,a) - Mean(A))"]
+        ValStream --> QCombine
+        AdvStream --> QCombine
     end
 
-    subgraph ARBITRATION["Policy Arbitration & Safety Shield"]
-        QAction["DQN Action Selection<br/>(argmax Q or ε-greedy)"]
-        ExpertAction["Expert Policy Fallback<br/>(Adaptive Headway + Signal Rules)"]
-        ModeSwitch{"Driving Mode<br/>(Untrained / Train / Master)"}
-        
-        QCombine --> QAction
-        QAction --> ModeSwitch
-        ExpertAction --> ModeSwitch
-        
-        Shield{"Hard Safety Shield<br/>- Inverted TTC < 1.0s?<br/>- Legal Red / Yield violation?<br/>- Speed-0 Deadlock override?"}
+    subgraph Control ["Arbitration & Hard Safety Shield"]
+        DQNAct["DQN Action Selection<br/>(Argmax Q or Epsilon-Greedy)"]
+        ExpertAct["Expert Baseline Policy<br/>(Adaptive Headway + Signal Rules)"]
+        ModeSwitch{"Driving Mode<br/>(1: Expert | 2: Train | 3: Master)"}
+
+        QCombine --> DQNAct
+        DQNAct --> ModeSwitch
+        ExpertAct --> ModeSwitch
+
+        Shield{"Hard Safety Shield<br/>- TTC less than 1.0s clamp<br/>- Red/Yield violation lock<br/>- Speed-0 deadlock override"}
         ModeSwitch --> Shield
-        
-        FinalAct["Final Longitudinal Action<br/>(COAST / ACCEL_MILD / ACCEL_FULL / BRAKE_MILD / BRAKE_HARD)"]
-        Shield -->|Safe| FinalAct
-        Shield -->|Override Triggered| FinalAct
+
+        FinalAction["Final Longitudinal Action<br/>(COAST / ACCEL_MILD / ACCEL_FULL / BRAKE_MILD / BRAKE_HARD)"]
+        Shield -->|"Safe / Override"| FinalAction
     end
 
-    subgraph SIM["Urban Simulation Engine (60 Hz)"]
-        FinalAct --> SimStep["Vehicle Kinematics & SAT Collision Engine"]
-        SimStep --> WorldUpdate["Dual-Node City Environment<br/>(4-Way Junction + Roundabout + Pedestrians)"]
+    subgraph Environment ["Simulation Engine (60 FPS)"]
+        FinalAction --> Physics["Vehicle Kinematics & SAT Collision Mesh"]
+        Physics --> CityWorld["Dual-Node Multi-Agent City Environment"]
     end
 ```
 
@@ -168,35 +181,34 @@ flowchart TD
 ### 2. Multi-Agent Traffic Execution Flow
 
 ```mermaid
-flowchart LR
-    Start(["Spawn Vehicle"]) --> RouteInit["Assign Lane Polyline & Route<br/>(Straight / Turn / Roundabout / Through)"]
-    RouteInit --> NodeDetect{"Current Sub-Area?"}
-    
-    NodeDetect -->|Main 4-Way Approach| CheckSignal{"Check Traffic Light"}
-    CheckSignal -->|Red / Yellow| StopLineClamp["Clamp at 36 px Stop Line<br/>(v → 0)"]
-    CheckSignal -->|Green| CheckBoxClear{"Main Box Clear?"}
-    CheckBoxClear -->|Yes| AccelThrough["Accelerate Through 4-Way"]
-    CheckBoxClear -->|Hazard / Pedestrian| YieldInBox["Yield & Brake"]
+graph TD
+    Spawn(["Vehicle Spawns on Assigned Route"]) --> Classify{"Detect Current Area"}
 
-    NodeDetect -->|Roundabout Entry| CheckYield{"Upstream Yield Check<br/>(105° CCW Annulus Arc)"}
-    CheckYield -->|Circulating Traffic Present| YieldEntry["Hold Speed at Yield Line"]
-    CheckYield -->|Gap Accepted| EnterRing["Merge CCW Outer/Inner Annulus"]
-    EnterRing --> InRingFlow["Circulate CCW<br/>(Keep minimum rolling speed)"]
-    InRingFlow --> ExitRing["Diverge into Outbound Lane"]
+    Classify -->|"Main 4-Way Approach"| CheckLight{"Check Traffic Light"}
+    CheckLight -->|"Red / Yellow"| StopClamp["Clamp at 36px Stop Line (Speed = 0)"]
+    CheckLight -->|"Green"| BoxClear{"Is Junction Box Clear?"}
+    BoxClear -->|"Clear"| AccelJunction["Accelerate Through Intersection"]
+    BoxClear -->|"Pedestrian / Hazard"| YieldJunction["Yield & Decelerate"]
 
-    NodeDetect -->|Connector Corridor| FollowCorridor["Corridor Cruise & Car-Following"]
-    
-    StopLineClamp --> CheckEMS{"EMS Siren Nearby?"}
-    AccelThrough --> CheckEMS
-    YieldInBox --> CheckEMS
-    YieldEntry --> CheckEMS
-    InRingFlow --> CheckEMS
-    ExitRing --> CheckEMS
-    FollowCorridor --> CheckEMS
+    Classify -->|"Roundabout Entry"| YieldCheck{"Yield Check (105-Deg CCW Arc)"}
+    YieldCheck -->|"Circulating Traffic Detected"| HoldYield["Hold at Entry Yield Line"]
+    YieldCheck -->|"Safe Gap Accepted"| MergeRing["Merge into CCW Inner/Outer Ring"]
+    MergeRing --> RingFlow["Circulate CCW (Maintain Minimum Flow Speed)"]
+    RingFlow --> ExitRing["Diverge into Outbound Travel Lane"]
 
-    CheckEMS -->|Siren Active| PullOver["Offset Lane by +12 px & Yield"]
-    CheckEMS -->|Normal| ExecuteDynamics["Update Kinematics & Collision Mesh"]
-    PullOver --> ExecuteDynamics
+    Classify -->|"Connector Corridor"| CorridorFlow["Corridor Cruise & Car-Following"]
+
+    StopClamp --> SirenCheck{"EMS Siren in Range?"}
+    AccelJunction --> SirenCheck
+    YieldJunction --> SirenCheck
+    HoldYield --> SirenCheck
+    ExitRing --> SirenCheck
+    RingFlow --> SirenCheck
+    CorridorFlow --> SirenCheck
+
+    SirenCheck -->|"Siren Active"| PullOver["Pull Over (+12px Lane Offset & Brake)"]
+    SirenCheck -->|"Normal Traffic"| ApplyPhysics["Update Kinematics & SAT Collision Mesh"]
+    PullOver --> ApplyPhysics
 ```
 
 <br>
