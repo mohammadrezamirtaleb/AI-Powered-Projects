@@ -3,7 +3,7 @@ Traffic Light Phase Controller for 4-way intersection.
 Manages automatic green-yellow-red cycling, all-red clearance intervals,
 emergency vehicle preemption, and actuated / adaptive traffic queue optimization.
 """
-from src.config import TRAFFIC_LIGHT_PHASES, PHASE_DURATIONS
+from src.config import TRAFFIC_LIGHT_PHASES, PHASE_DURATIONS, EMERGENCY_PREEMPT_DIST
 
 class TrafficController:
     def __init__(self):
@@ -35,7 +35,11 @@ class TrafficController:
             for v in vehicles:
                 if v.is_alive and getattr(v, 'is_emergency', False):
                     dist = v.get_distance_to_stop_line()
-                    if 0.0 < dist < 200.0:
+                    if dist is None or dist > 4000:
+                        continue
+                    if getattr(v.route, 'node', 'MAIN') == 'ROUNDABOUT':
+                        continue
+                    if 0.0 < dist < EMERGENCY_PREEMPT_DIST:
                         if v.route.start_dir in ('N', 'S'):
                             ns_emergency = True
                         elif v.route.start_dir in ('E', 'W'):
@@ -76,10 +80,9 @@ class TrafficController:
             self.timer = 0.0
             self.current_phase_index = (self.current_phase_index + 1) % len(self.phase_keys)
 
-    def get_light_state(self, direction):
-        """
-        Get light state ('RED', 'YELLOW', 'GREEN') for a direction ('N', 'S', 'E', 'W').
-        """
+    def get_light_state(self, direction, node='MAIN'):
+        if node == 'ROUNDABOUT':
+            return 'YIELD'
         phase = self.current_phase
 
         if direction in ('N', 'S'):

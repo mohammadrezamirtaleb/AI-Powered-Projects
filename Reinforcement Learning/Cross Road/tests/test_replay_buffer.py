@@ -1,6 +1,11 @@
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import unittest
 import numpy as np
 from src.ai.dqn_agent import SumTree, PrioritizedReplayBuffer
+from src.config import STACKED_STATE_SIZE
 
 class TestSumTreeAndPER(unittest.TestCase):
     def test_sumtree_basic_add_and_total(self):
@@ -20,7 +25,7 @@ class TestSumTreeAndPER(unittest.TestCase):
 
     def test_per_push_and_sample(self):
         buf = PrioritizedReplayBuffer(capacity=100)
-        state_dummy = np.zeros(87, dtype=np.float32)
+        state_dummy = np.zeros(STACKED_STATE_SIZE, dtype=np.float32)
         for i in range(50):
             buf.push(state_dummy, 0, 1.0, state_dummy, False)
 

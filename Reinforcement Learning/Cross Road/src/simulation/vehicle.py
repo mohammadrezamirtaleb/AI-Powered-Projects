@@ -12,7 +12,8 @@ import numpy as np
 from src.config import (
     VEHICLE_LENGTH, VEHICLE_WIDTH, MAX_SPEED, MIN_SPEED,
     MAX_ACCEL, MAX_BRAKE, EMERGENCY_BRAKE, FRICTION,
-    ACTIONS_MAP, CAR_COLORS, FRAME_STACK_SIZE
+    ACTIONS_MAP, CAR_COLORS, FRAME_STACK_SIZE, SIREN_RADIUS,
+    RING_CONFLICT_ARC, RING_STALLED_IGNORE_SEC
 )
 from src.simulation.sensors import SensorSuite
 
@@ -44,6 +45,14 @@ VEHICLE_PROFILES = {
     'AMBULANCE': {
         'length': 44.0, 'width': 20.0, 'max_speed': 5.5, 'accel': 0.18, 'brake': 0.38,
         'weight': 1.4, 'is_emergency': True
+    },
+    'FIRE': {
+        'length': 62.0, 'width': 22.0, 'max_speed': 5.2, 'accel': 0.14, 'brake': 0.36,
+        'weight': 2.4, 'is_emergency': True
+    },
+    'POLICE': {
+        'length': 40.0, 'width': 18.0, 'max_speed': 6.0, 'accel': 0.22, 'brake': 0.44,
+        'weight': 1.1, 'is_emergency': True
     },
 }
 
@@ -107,6 +116,149 @@ def check_sat_collision(corners_a, corners_b):
     return True
 
 
+def ring_has_priority_traffic(car, all_vehicles):
+    """
+    Is there circulating traffic that actually has priority over this entry?
+
+    Two rules the original check was missing, each of which deadlocked the city
+    on its own:
+
+      * Only traffic upstream of our entry, within RING_CONFLICT_ARC, can reach
+        the entry before we clear it. Yielding to the entire ring means two cars
+        on opposite approaches each wait for the other.
+      * A vehicle that has been standing still is an obstacle, not circulating
+        traffic. Treating a stalled car as priority traffic froze every approach
+        permanently, since nothing could ever clear it.
+    """
+    a0 = getattr(car.route, 'entry_alpha', None)
+    if a0 is None or not all_vehicles:
+        return False
+
+    rbx = getattr(car.route, 'rbx', None)
+    rby = getattr(car.route, 'rby', None)
+    if rbx is None or rby is None:
+        return False
+    r_outer = getattr(car.route, 'r_outer', 88.0)
+
+    two_pi = 2.0 * math.pi
+    for other in all_vehicles:
+        if other.id == car.id or not other.is_alive:
+            continue
+        d = math.hypot(other.x - rbx, other.y - rby)
+        if not (28.0 < d < r_outer + 6.0):
+            continue
+        if other.speed < 0.25 and getattr(other, 'time_stalled', 0.0) > RING_STALLED_IGNORE_SEC:
+            continue
+        theta = math.atan2(rby - other.y, other.x - rbx)
+        if getattr(car.route, 'circ_ccw', True):
+            delta = (a0 - theta) % two_pi
+        else:
+            delta = (theta - a0) % two_pi
+        if 0.0 <= delta < RING_CONFLICT_ARC:
+            return True
+    return False
+
+
+def attribute_fault(v1, v2):
+    """
+    Decide who caused a collision between two vehicles.
+
+    The old rule was "whoever was moving is at fault", which blamed a vehicle
+    crossing legally on green just as hard as the one that ran the red. That
+    taught the policy to fear its own right of way. This version reads the
+    geometry and the traffic rules instead.
+
+    Returns (v1_at_fault, v2_at_fault).
+    """
+    dx = v2.x - v1.x
+    dy = v2.y - v1.y
+    heading_gap = abs((v2.angle - v1.angle + math.pi) % (2 * math.pi) - math.pi)
+
+    v1_moving = v1.speed > 0.3
+    v2_moving = v2.speed > 0.3
+
+    # 1. Same heading: this is a rear-end, and the follower is responsible.
+    if heading_gap < math.radians(45):
+        fwd1 = dx * math.cos(v1.angle) + dy * math.sin(v1.angle)
+        if fwd1 > 0:
+            return True, False    # v2 is ahead, v1 ran into its back
+        return False, True
+
+    # 2. Only one of them was moving: the moving one hit a stationary object.
+    if v1_moving and not v2_moving:
+        return True, False
+    if v2_moving and not v1_moving:
+        return False, True
+
+    # 3. Crossing or head-on. Whoever broke a rule owns it.
+    v1_illegal = (getattr(v1, 'tl_state_at_entry', None) in ('RED', 'YELLOW')
+                  or getattr(v1, 'yield_violated', False)
+                  or getattr(v1, 'stop_line_overrun', False))
+    v2_illegal = (getattr(v2, 'tl_state_at_entry', None) in ('RED', 'YELLOW')
+                  or getattr(v2, 'yield_violated', False)
+                  or getattr(v2, 'stop_line_overrun', False))
+    if v1_illegal and not v2_illegal:
+        return True, False
+    if v2_illegal and not v1_illegal:
+        return False, True
+
+    # 4. Nothing separates them.
+    return True, True
+
+
+def resolve_vehicle_collisions(vehicles, on_crash=None):
+    """
+    SAT collision pass with positional separation and fault attribution.
+
+    Shared by the live simulation and the headless trainer so both produce the
+    same transitions; they used to differ in broad-phase radius and in whether
+    stationary wrecks could be struck at all.
+
+    on_crash(v1, v2, cx, cy) is invoked once per new collision.
+    Returns the number of collisions resolved.
+    """
+    crashes = 0
+    n = len(vehicles)
+    for i in range(n):
+        v1 = vehicles[i]
+        for j in range(i + 1, n):
+            v2 = vehicles[j]
+
+            dist = math.hypot(v1.x - v2.x, v1.y - v2.y)
+            max_rad = (v1.length + v2.length) / 2.0
+            if dist > max_rad * 1.2:
+                continue
+
+            if not check_sat_collision(v1.get_corners(), v2.get_corners()):
+                continue
+
+            # Push the shells apart so vehicles never render overlapped.
+            if dist > 0.01:
+                sep = max(1.5, (max_rad - dist) * 0.5)
+                nx = (v1.x - v2.x) / dist
+                ny = (v1.y - v2.y) / dist
+                v1.x += nx * sep
+                v1.y += ny * sep
+                v2.x -= nx * sep
+                v2.y -= ny * sep
+
+            if not (v1.is_alive or v2.is_alive):
+                continue
+
+            v1_fault, v2_fault = attribute_fault(v1, v2)
+            cx = (v1.x + v2.x) / 2.0
+            cy = (v1.y + v2.y) / 2.0
+            if v1.is_alive:
+                v1.crash(is_at_fault=v1_fault)
+            if v2.is_alive:
+                v2.crash(is_at_fault=v2_fault)
+            crashes += 1
+            if on_crash is not None:
+                on_crash(v1, v2, cx, cy)
+
+    return crashes
+
+
 class Vehicle:
     _id_counter = 1
     _badge_font = None
@@ -119,10 +271,13 @@ class Vehicle:
 
         # Vehicle Type Selection
         if v_type is None:
-            # Weighted random choice: 50% Sedan, 18% SUV, 10% Sports, 8% Truck, 6% Bus, 5% Motorcycle, 3% Ambulance
+            # Emergency vehicles are about 3% of random traffic. At the previous 9%
+            # roughly two or three were on the map at all times, and since every
+            # vehicle near one stops dead, the city spent most of its time frozen.
+            # Press A / F / P to spawn one deliberately.
             v_type = random.choices(
-                ['SEDAN', 'SUV', 'SPORTS', 'TRUCK', 'BUS', 'MOTORCYCLE', 'AMBULANCE'],
-                weights=[50, 18, 10, 8, 6, 5, 3]
+                ['SEDAN', 'SUV', 'SPORTS', 'TRUCK', 'BUS', 'MOTORCYCLE', 'AMBULANCE', 'FIRE', 'POLICE'],
+                weights=[48, 18, 11, 8, 7, 5, 1, 1, 1]
             )[0]
 
         self.v_type = v_type
@@ -136,7 +291,12 @@ class Vehicle:
         self.is_emergency = prof['is_emergency']
 
         if self.is_emergency:
-            self.color = (245, 245, 250) # Pure Ambulance White
+            if v_type == 'FIRE':
+                self.color = (210, 45, 40)
+            elif v_type == 'POLICE':
+                self.color = (20, 45, 120)
+            else:
+                self.color = (245, 245, 250)
         elif color is not None:
             self.color = color
         elif v_type == 'BUS':
@@ -178,6 +338,35 @@ class Vehicle:
         self.time_since_crash = 0.0
         self.total_reward = 0.0
 
+        # Violation & event flags consumed by the reward / penalty function
+        self.hit_pedestrian = False
+        self.was_in_roundabout = False
+        self.roundabout_cleared = False
+        self.rewarded_roundabout_clear = False
+        self.gave_roundabout_yield = False
+        self.yield_violated = False
+        self.penalized_yield_violation = False
+        self.stop_line_overrun = False
+        self.penalized_overrun = False
+        self.rewarded_for_stop = False
+        self.rewarded_emergency_yield = False
+        self.rewarded_roundabout = False
+        self.rewarded_route_complete = False
+        self.yielded_to_emergency = False
+        self.has_cleared_yield = False
+        self.time_stalled = 0.0
+        self.in_conflict_box = False
+        self.red_light_intent = False
+        self.penalized_block_emergency = False
+        self.prev_action_name = "COAST"
+
+        # Cached perception refreshed every physics frame, so the reward reads
+        # live headway instead of LiDAR that is only re-scanned every 4 frames.
+        self.last_lead_clearance = None
+        self.last_lead_speed = 0.0
+        self.last_lead_is_pedestrian = False
+        self.live_ttc = 99.0
+
         # RL Memory & action
         self.last_state = None
         self.last_action = 0
@@ -200,6 +389,7 @@ class Vehicle:
 
         # Sensor suite
         self.sensors = SensorSuite(self)
+        self.pull_over_offset = 0.0
 
     def get_stacked_state(self, raw_state):
         """
@@ -251,7 +441,7 @@ class Vehicle:
             self.accel = -self.max_brake * 1.5
             self.is_braking = True
 
-    def update_physics(self, dt=1.0/60.0, friction_coeff=1.0, current_tl_state=None, all_vehicles=None, puddles=None, v2v_enabled=False, pedestrians=None):
+    def update_physics(self, dt=1.0/60.0, friction_coeff=1.0, current_tl_state=None, all_vehicles=None, puddles=None, v2v_enabled=False, pedestrians=None, conflict_bounds=None):
         """Update speed, trajectory, or crash impulse spin-out with proper dt scaling and wet road grip."""
         dt_scale = dt * 60.0
         self.time_alive += dt
@@ -270,10 +460,21 @@ class Vehicle:
 
         self.v2v_active = self.is_braking
 
+        # One obstacle scan per frame, shared by V2V, headway control and the reward.
+        lead_clearance, lead_obj, lead_speed = self.get_leading_obstacle(all_vehicles, pedestrians)
+        self.last_lead_clearance = lead_clearance
+        self.last_lead_speed = lead_speed
+        self.last_lead_is_pedestrian = lead_obj is not None and hasattr(lead_obj, 'walk_timer')
+        if lead_clearance is not None:
+            closing = self.speed - lead_speed
+            self.live_ttc = (lead_clearance / (closing * 60.0)) if closing > 0.05 else 99.0
+        else:
+            self.live_ttc = 99.0
+
         # V2V Sync & Ambulance Pull-over Logic
         if all_vehicles:
-            dist_ahead, lead_car, _ = self.get_leading_obstacle(all_vehicles)
-            if v2v_enabled and lead_car and dist_ahead < 60.0 and getattr(lead_car, 'v2v_active', False):
+            dist_ahead, lead_car = lead_clearance, lead_obj
+            if v2v_enabled and lead_car and dist_ahead is not None and dist_ahead < 60.0 and getattr(lead_car, 'v2v_active', False):
                 self.is_braking = True
                 self.accel = -self.max_brake * 1.5
                 self.v2v_active = True
@@ -281,25 +482,53 @@ class Vehicle:
             else:
                 self.v2v_triggered = False
 
-            # Ambulance check (check if ambulance is behind us within 80px)
+            # Emergency: yield only if EMS is actually behind us in our corridor.
+            # Euclidean "closing" used to stop cars already *ahead* of the
+            # ambulance — on the ring that parked a wall in front of EMS.
             if not self.is_emergency:
-                ambulance_behind = False
+                emergency_near = False
+                cos_h = math.cos(self.angle)
+                sin_h = math.sin(self.angle)
                 for other in all_vehicles:
-                    if other.is_alive and other.is_emergency and other.route.id == self.route.id:
-                        dist_behind = self.path_distance - other.path_distance
-                        if 0 < dist_behind < 80.0:
-                            ambulance_behind = True
-                            break
-                if ambulance_behind:
-                    self.is_braking = True
-                    self.accel = -self.max_brake
-                    self.pull_over_offset = getattr(self, 'pull_over_offset', 0)
-                    if self.pull_over_offset < 8.0:
-                        self.pull_over_offset += 0.5 * dt_scale
+                    if not (other.is_alive and other.is_emergency):
+                        continue
+                    if other.speed < 0.6:
+                        continue
+                    dx = self.x - other.x
+                    dy = self.y - other.y
+                    behind = dx * cos_h + dy * sin_h
+                    lat = abs(-dx * sin_h + dy * cos_h)
+                    same_route = other.route.id == self.route.id
+                    dist_behind = self.path_distance - other.path_distance
+                    in_corridor = 0 < behind < SIREN_RADIUS and lat < 40.0
+                    if ((same_route and 0 < dist_behind < SIREN_RADIUS)
+                            or in_corridor):
+                        emergency_near = True
+                        break
+                if emergency_near:
+                    self.yielded_to_emergency = True
+                    if self.pull_over_offset < 18.0:
+                        self.pull_over_offset += 0.7 * dt_scale
+                    # Inside the circulating lane a full stop traps EMS behind us.
+                    # Slide to the outer curb and keep rolling; yield at the entry
+                    # line is already handled by ring_has_priority_traffic.
+                    rbx = getattr(self.route, 'rbx', None)
+                    rby = getattr(self.route, 'rby', None)
+                    in_ring = (
+                        rbx is not None and rby is not None and
+                        math.hypot(self.x - rbx, self.y - rby)
+                        < getattr(self.route, 'r_outer', 88.0) + 8.0
+                    )
+                    if in_ring:
+                        if self.pull_over_offset < 18.0:
+                            self.pull_over_offset += 0.5 * dt_scale
+                    else:
+                        self.is_braking = True
+                        self.accel = -self.max_brake
                 else:
-                    self.pull_over_offset = getattr(self, 'pull_over_offset', 0)
+                    self.yielded_to_emergency = False
                     if self.pull_over_offset > 0:
-                        self.pull_over_offset -= 0.5 * dt_scale
+                        self.pull_over_offset = max(0.0, self.pull_over_offset - 0.5 * dt_scale)
 
         # Puddle Hydroplaning Logic
         self.is_hydroplaning = False
@@ -320,16 +549,24 @@ class Vehicle:
             self.slip_angle *= 0.9
 
         # Intelligent safe headway & collision prevention behind leading vehicle or pedestrian
-        lead_clearance, lead_obj, lead_speed = self.get_leading_obstacle(all_vehicles, pedestrians)
         if lead_clearance is not None:
-            # Dynamic safe cushion based on vehicle speed
-            min_safe_gap = max(26.0, self.speed * 11.0)
-            if lead_clearance < min_safe_gap:
+            pulled = getattr(lead_obj, 'pull_over_offset', 0) if lead_obj is not None else 0
+            # Stopping distance plus a standing buffer, matching the expert's
+            # soft gap. A flat 26px floor meant a stationary queue whose cars sat
+            # 20px apart could brake against each other and never restart.
+            stop_dist = (self.speed * self.speed) / (2.0 * max(0.05, self.max_brake))
+            if self.is_emergency and pulled > 8.0:
+                min_safe_gap = 10.0 + stop_dist * 0.5
+            else:
+                min_safe_gap = 16.0 + stop_dist * 1.25
+            queue_restart = (
+                self.speed < 0.3 and lead_speed < 0.3 and lead_clearance > 10.0
+            )
+            if lead_clearance < min_safe_gap and not queue_restart:
                 self.is_braking = True
                 braking_urgency = min(1.0, (min_safe_gap - lead_clearance) / 18.0)
                 self.accel = -self.max_brake * (0.85 + 0.35 * braking_urgency)
                 if lead_clearance < 10.0:
-                    # Maintain standstill cushion gap (no bumper overlap!)
                     self.speed = max(0.0, min(self.speed * 0.2, lead_speed * 0.4))
                     self.accel = -self.max_brake * 1.5
 
@@ -342,11 +579,20 @@ class Vehicle:
         self.speed += effective_accel * dt_scale
         self.speed = max(MIN_SPEED, min(self.target_speed, self.speed))
 
-        # Enforce physical stop line compliance on RED / YELLOW lights
+        # Enforce physical stop line compliance on RED / YELLOW lights.
+        # The clamp keeps the simulation lawful, but the attempt is recorded so the
+        # penalty function still has something to learn from: without this the agent
+        # only ever experiences an invisible wall, never a consequence.
+        self.red_light_intent = False
         if current_tl_state in ('RED', 'YELLOW') and not self.has_passed_intersection and not self.is_emergency:
             dist_to_stop = self.get_distance_to_stop_line()
-            if dist_to_stop is not None:
+            if dist_to_stop is not None and dist_to_stop < 4000:
+                if "ACCEL" in self.action_name and dist_to_stop < 45.0:
+                    self.red_light_intent = True
                 if dist_to_stop <= 6.0:
+                    # Arriving here still moving means the agent failed to stop in time.
+                    if self.speed > 0.9:
+                        self.stop_line_overrun = True
                     self.speed = 0.0
                     self.is_braking = True
                     self.accel = -self.max_brake
@@ -354,6 +600,105 @@ class Vehicle:
                 elif dist_to_stop < 55.0 and self.speed > 1.0:
                     self.is_braking = True
                     self.accel = -self.max_brake * 1.2
+
+        # Hold at the stop line if a crossing vehicle is already in the box
+        rbx = getattr(self.route, 'rbx', None)
+        rby = getattr(self.route, 'rby', None)
+        near_roundabout = (
+            rbx is not None and rby is not None and
+            math.hypot(self.x - rbx, self.y - rby) < getattr(self.route, 'r_outer', 88.0) + 18.0
+        )
+        # Conflict-box occupancy is recorded for every vehicle, roundabout included,
+        # because the grid-lock penalty needs it regardless of the hold logic below.
+        self.in_conflict_box = False
+        if conflict_bounds:
+            bx_min, by_min, bx_max, by_max = conflict_bounds
+            self.in_conflict_box = bx_min <= self.x <= bx_max and by_min <= self.y <= by_max
+
+        if conflict_bounds and all_vehicles and not near_roundabout:
+            dist_to_stop = self.get_distance_to_stop_line()
+            entering = (
+                dist_to_stop is not None and dist_to_stop < 4000
+                and -6.0 <= dist_to_stop <= 26.0
+                and not self.has_passed_intersection
+            )
+            jx_min, jy_min, jx_max, jy_max = conflict_bounds
+            in_box = self.in_conflict_box
+            if entering or (in_box and not self.has_passed_intersection):
+                for other in all_vehicles:
+                    if other.id == self.id or not other.is_alive:
+                        continue
+                    if not (jx_min <= other.x <= jx_max and jy_min <= other.y <= jy_max):
+                        continue
+                    # A vehicle that has been sitting in the box is an obstacle for
+                    # the headway controller to handle, not a reason to hold the
+                    # stop line forever. Holding for it gridlocks the junction.
+                    if other.speed < 0.25 and getattr(other, 'time_stalled', 0.0) > 2.0:
+                        continue
+                    angle_diff = abs((other.angle - self.angle + math.pi) % (2 * math.pi) - math.pi)
+                    if math.radians(50) <= angle_diff <= math.radians(130):
+                        self.is_braking = True
+                        self.accel = -self.max_brake * 1.4
+                        self.speed = min(self.speed, 0.15)
+                        break
+
+        # Roundabout yield: pause at yield line if circulating traffic is present
+        yld = getattr(self.route, 'yield_line_dist', None)
+        if yld is not None and not self.is_emergency and not getattr(self, 'has_cleared_yield', False):
+            rbx = getattr(self.route, 'rbx', None)
+            rby = getattr(self.route, 'rby', None)
+            r_outer = getattr(self.route, 'r_outer', 88.0)
+            in_ring_now = (
+                rbx is not None and rby is not None and
+                math.hypot(self.x - rbx, self.y - rby) < r_outer
+            )
+            # Once past the give-way line (or already circulating) this lock
+            # must release. The previous `dist_y <= 8` test stayed true for
+            # negative distances, so cars froze *inside* the ring for EMS.
+            if in_ring_now or self.path_distance > yld + 10.0:
+                self.has_cleared_yield = True
+            else:
+                dist_y = yld - self.path_distance
+                circulating = ring_has_priority_traffic(self, all_vehicles)
+                if dist_y <= 8.0 and circulating:
+                    # Reaching the give-way line at speed into live circulating traffic
+                    # is a failure to yield, even though physics stops the car anyway.
+                    if self.speed > 1.0:
+                        self.yield_violated = True
+                    else:
+                        self.gave_roundabout_yield = True
+                    self.speed = min(self.speed, 0.15)
+                    self.is_braking = True
+                    self.accel = -self.max_brake
+                elif dist_y < 50.0 and circulating and self.speed > 1.2:
+                    self.is_braking = True
+                    self.accel = -self.max_brake * 1.1
+
+        # Roundabout traversal tracking: rewards the completed manoeuvre, which the
+        # sentinel stop-line distance (1e6) previously made unreachable.
+        rb_x = getattr(self.route, 'rbx', None)
+        rb_y = getattr(self.route, 'rby', None)
+        if rb_x is not None and rb_y is not None:
+            r_out = getattr(self.route, 'r_outer', 88.0)
+            d_rb = math.hypot(self.x - rb_x, self.y - rb_y)
+            if d_rb < r_out:
+                self.was_in_roundabout = True
+            elif self.was_in_roundabout and d_rb > r_out + 22.0:
+                self.roundabout_cleared = True
+            # Keep the circulating lane flowing. Coast from an untrained policy
+            # used to pin every car at speed 0; the ring then deadlocked.
+            if d_rb < r_out and getattr(self, 'has_cleared_yield', False):
+                bumper = lead_clearance if lead_clearance is not None else 99.0
+                if bumper > 10.0 and self.speed < 1.05 and not self.yielded_to_emergency:
+                    self.is_braking = False
+                    self.accel = max(self.accel, self.max_accel * 0.7)
+                    self.speed = max(self.speed, 1.05)
+
+        # Stall timer: how long this vehicle has been standing still
+        if self.speed < 0.2:
+            self.time_stalled += dt
+        else:
+            self.time_stalled = 0.0
 
         # Move along trajectory
         self.path_distance += self.speed * dt_scale
@@ -381,6 +726,11 @@ class Vehicle:
 
         cos_h = math.cos(self.angle)
         sin_h = math.sin(self.angle)
+        rbx = getattr(self.route, 'rbx', None)
+        rby = getattr(self.route, 'rby', None)
+        in_ring = False
+        if rbx is not None and rby is not None:
+            in_ring = math.hypot(self.x - rbx, self.y - rby) < getattr(self.route, 'r_outer', 88.0) + 10.0
 
         # 1. Scan other vehicles (alive, waiting, or stationary wrecks)
         if all_vehicles:
@@ -396,7 +746,24 @@ class Vehicle:
                 # Corridor width: accounts for both vehicles' widths
                 corridor = (self.width + other.width) / 2.0 + 4.0
 
+                # On the ring a 160px forward cone looks across the island at
+                # traffic that is not on our arc. Only similar headings count.
+                if in_ring:
+                    heading_gap = abs((other.angle - self.angle + math.pi) % (2 * math.pi) - math.pi)
+                    if heading_gap > math.radians(50):
+                        continue
+                    r_self = math.hypot(self.x - rbx, self.y - rby)
+                    r_oth = math.hypot(other.x - rbx, other.y - rby)
+                    if abs(r_self - r_oth) > 16.0:
+                        continue
+
+                pulled_aside = self.is_emergency and (
+                    getattr(other, 'pull_over_offset', 0) > 8.0
+                    or getattr(other, 'yielded_to_emergency', False)
+                )
                 if 0.0 < fwd < 160.0 and lat < corridor:
+                    if pulled_aside:
+                        continue
                     # Bumper-to-bumper clearance in pixels
                     clearance = fwd - (self.length / 2.0 + other.length / 2.0)
                     if 0.0 <= clearance < closest_clearance:
@@ -406,6 +773,8 @@ class Vehicle:
 
                 # Also scan along same route curve
                 if other.route.id == self.route.id:
+                    if pulled_aside:
+                        continue
                     dist_ahead = other.path_distance - self.path_distance
                     if dist_ahead > 0:
                         clearance = dist_ahead - (self.length / 2.0 + other.length / 2.0)
@@ -441,10 +810,11 @@ class Vehicle:
         c, obj, _ = self.get_leading_obstacle(all_vehicles)
         return c, obj
 
-    def crash(self, is_at_fault=True):
+    def crash(self, is_at_fault=True, hit_pedestrian=False):
         """Trigger vehicle crash state while keeping vehicle in its road lane."""
         self.has_crashed = True
         self.is_at_fault = is_at_fault
+        self.hit_pedestrian = hit_pedestrian
         self.is_alive = False
         self.angular_vel = random.uniform(-0.03, 0.03)
         # Gentle slide along forward heading, NOT flinging into grass/sidewalk
@@ -460,12 +830,10 @@ class Vehicle:
         hw = self.width / 2.0
 
         # 1. Shadow beneath vehicle
-        shadow_offset = (3, 4) if not is_night else (1, 2)
+        shadow_offset = (5, 6) if not is_night else (2, 3)
         corners = self.get_corners()
         shadow_pts = [(int(p[0] + shadow_offset[0]), int(p[1] + shadow_offset[1])) for p in corners]
-        s_surf = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        pygame.draw.polygon(s_surf, (0, 0, 0, 85 if not is_night else 140), shadow_pts)
-        surface.blit(s_surf, (0, 0))
+        pygame.draw.polygon(surface, (12, 14, 16), shadow_pts)
 
         # 2. Wheels
         if self.v_type != 'MOTORCYCLE':
@@ -522,14 +890,24 @@ class Vehicle:
             pygame.draw.polygon(surface, (160, 165, 175), [(int(p[0]), int(p[1])) for p in cargo_corners], 2)
 
         elif self.v_type == 'AMBULANCE':
-            # Ambulance Red Cross on roof & Emergency Strobes
-            # Red Cross Emblem
             pygame.draw.line(surface, (240, 30, 30), (self.x - 5 * cos_a, self.y - 5 * sin_a), (self.x + 5 * cos_a, self.y + 5 * sin_a), 3)
             pygame.draw.line(surface, (240, 30, 30), (self.x - 5 * sin_a, self.y + 5 * cos_a), (self.x + 5 * sin_a, self.y - 5 * cos_a), 3)
-            # Flashing LED Light Bar (Red / Blue strobe)
             strobe_col = (255, 30, 30) if (self.turn_signal_timer // 8) % 2 == 0 else (30, 120, 255)
             bar_c = (self.x + cos_a * (hl * 0.2), self.y + sin_a * (hl * 0.2))
             bar_corners = get_rotated_rect_corners(bar_c[0], bar_c[1], 4.0, hw * 1.4, self.angle)
+            pygame.draw.polygon(surface, strobe_col, [(int(p[0]), int(p[1])) for p in bar_corners])
+
+        elif self.v_type == 'FIRE':
+            cab_c = (self.x + cos_a * (hl * 0.45), self.y + sin_a * (hl * 0.45))
+            cab_corners = get_rotated_rect_corners(cab_c[0], cab_c[1], hl * 0.55, hw * 1.7, self.angle)
+            pygame.draw.polygon(surface, (250, 210, 40), [(int(p[0]), int(p[1])) for p in cab_corners])
+            strobe_col = (255, 40, 40) if (self.turn_signal_timer // 7) % 2 == 0 else (255, 180, 30)
+            pygame.draw.circle(surface, strobe_col, (int(self.x + 8 * cos_a), int(self.y + 8 * sin_a)), 4)
+
+        elif self.v_type == 'POLICE':
+            strobe_col = (40, 90, 255) if (self.turn_signal_timer // 6) % 2 == 0 else (255, 40, 40)
+            bar_c = (self.x + cos_a * (hl * 0.05), self.y + sin_a * (hl * 0.05))
+            bar_corners = get_rotated_rect_corners(bar_c[0], bar_c[1], 5.0, hw * 1.5, self.angle)
             pygame.draw.polygon(surface, strobe_col, [(int(p[0]), int(p[1])) for p in bar_corners])
 
         elif self.v_type == 'MOTORCYCLE':
@@ -593,8 +971,8 @@ class Vehicle:
         # 8. Selection Aura if tracked
         if is_selected:
             pulse_r = int(self.length * 0.75 + math.sin(self.time_alive * 6.0) * 2)
-            pygame.draw.circle(surface, (0, 215, 255), (int(self.x), int(self.y)), pulse_r, 2)
-            pygame.draw.circle(surface, (0, 160, 255), (int(self.x), int(self.y)), pulse_r + 2, 1)
+            pygame.draw.circle(surface, (232, 165, 75), (int(self.x), int(self.y)), pulse_r, 2)
+            pygame.draw.circle(surface, (255, 214, 150), (int(self.x), int(self.y)), pulse_r + 2, 1)
 
         # 9. Windows 11 Fluent Real-Time Operation & ID Badge
         try:
@@ -603,29 +981,29 @@ class Vehicle:
 
             # Real-time operation status
             if self.has_crashed:
-                op_str = "CRASH 💥"
-                badge_bg = (180, 30, 30)
+                op_str = "CRASH"
+                badge_bg = (160, 36, 48)
             elif self.is_emergency:
-                op_str = "EMERGENCY 🚨"
-                badge_bg = (210, 35, 35)
+                op_str = "EMS"
+                badge_bg = (196, 48, 48)
             elif self.speed < 0.2:
-                op_str = "STOP ⏸"
-                badge_bg = (180, 45, 45)
+                op_str = "STOP"
+                badge_bg = (148, 52, 48)
             elif self.is_braking:
-                op_str = "BRAKE 🛑"
-                badge_bg = (195, 80, 20)
+                op_str = "BRAKE"
+                badge_bg = (176, 96, 32)
             elif self.route.turn_type == 'RIGHT' and self.path_distance > (self.route.stop_line_dist - 15):
-                op_str = "RIGHT ↱"
-                badge_bg = (175, 120, 20)
+                op_str = "RIGHT"
+                badge_bg = (156, 112, 36)
             elif self.route.turn_type == 'LEFT' and self.path_distance > (self.route.stop_line_dist - 15):
-                op_str = "LEFT ↰"
-                badge_bg = (175, 120, 20)
+                op_str = "LEFT"
+                badge_bg = (156, 112, 36)
             else:
-                op_str = "DRIVE ▶"
-                badge_bg = (24, 32, 46)
+                op_str = "DRIVE"
+                badge_bg = (22, 32, 44)
 
             if is_selected:
-                badge_bg = (0, 140, 240)
+                badge_bg = (176, 118, 40)
 
             badge_txt = f"#{self.vehicle_id} • {op_str}"
             txt = Vehicle._badge_font.render(badge_txt, True, (255, 255, 255))

@@ -136,6 +136,13 @@ class PedestrianManager:
                 ((cx + hrw + walk_offset, cy + hrw - 4), (cx + hrw + walk_offset, cy - hrw + 4))
             ]
         }
+        rbx = getattr(self.intersection, 'rbx', cx)
+        rby = getattr(self.intersection, 'rby', cy)
+        r_outer = getattr(self.intersection, 'r_outer', 88)
+        self.crosswalk_paths['BLVD'] = [
+            ((rbx - r_outer - 18, rby - hrw + 4), (rbx - r_outer - 18, rby + hrw - 4)),
+            ((rbx + r_outer + 18, rby - hrw + 4), (rbx + r_outer + 18, rby + hrw - 4)),
+        ]
 
     def update(self, dt, traffic_controller, jaywalking_enabled=False):
         # Update existing pedestrians
@@ -183,6 +190,10 @@ class PedestrianManager:
                 chosen_cw = random.choice(eligible)
                 path = random.choice(self.crosswalk_paths[chosen_cw])
                 ped = Pedestrian(chosen_cw, 1, path[0], path[1])
+                self.pedestrians.append(ped)
+            elif random.random() < 0.35 and 'BLVD' in self.crosswalk_paths:
+                path = random.choice(self.crosswalk_paths['BLVD'])
+                ped = Pedestrian('BLVD', 1, path[0], path[1], speed=1.0)
                 self.pedestrians.append(ped)
 
     def draw(self, surface, is_night=False):

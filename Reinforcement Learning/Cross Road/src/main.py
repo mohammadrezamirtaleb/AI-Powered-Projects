@@ -18,7 +18,7 @@ from src.config import (
 )
 from src.simulation.intersection import Intersection
 from src.simulation.traffic_controller import TrafficController
-from src.simulation.vehicle import Vehicle, check_sat_collision
+from src.simulation.vehicle import Vehicle, check_sat_collision, resolve_vehicle_collisions
 from src.simulation.pedestrians import PedestrianManager
 from src.simulation.weather import WeatherManager
 from src.simulation.particles import ParticleManager
@@ -28,7 +28,7 @@ from src.ai.dqn_agent import DQNAgent
 from src.render.renderer import Renderer
 from src.render.lighting import LightingEngine
 from src.render.ui_hud import UIHud
-from src.train_headless import get_expert_action
+from src.train_headless import get_expert_action, apply_safety_shield
 
 class TrainingWorker(threading.Thread):
     def __init__(self, sim):
@@ -85,7 +85,7 @@ class Simulation:
         canvas_w = self.width - self.sidebar_w
         canvas_h = self.height - self.topnav_h
         center_x = canvas_w // 2
-        center_y = self.topnav_h + (canvas_h // 2)
+        center_y = self.topnav_h + int(canvas_h * 0.34)
 
         # Core Simulation Components
         self.intersection = Intersection(center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
@@ -94,7 +94,7 @@ class Simulation:
         self.pedestrian_mgr = PedestrianManager(self.intersection)
         self.particle_mgr = ParticleManager()
         self.agent = DQNAgent()
-        self.renderer = Renderer(self.screen, center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
+        self.renderer = Renderer(self.screen, self.intersection.cx, self.intersection.cy, self.width, self.height, self.topnav_h, self.sidebar_w, city=self.intersection)
         self.lighting = LightingEngine(self.width, self.height)
 
         # Vehicles
@@ -137,9 +137,13 @@ class Simulation:
         weights_path = os.path.join(os.path.dirname(__file__), 'ai', 'weights', 'pretrained_master.pt')
         if os.path.exists(weights_path):
             try:
-                self.agent.load_weights(weights_path)
-                self.agent.set_mode('MASTER')
-                print(f"[AI] Loaded pre-trained master weights from {weights_path}")
+                loaded = self.agent.load_weights(weights_path)
+                if loaded:
+                    self.agent.set_mode('MASTER')
+                    print(f"[AI] Loaded pre-trained master weights from {weights_path}")
+                else:
+                    self.agent.set_mode('TRAINING')
+                    print("[AI] Weight shapes do not match the new city observation. Live training from scratch.")
             except Exception as e:
                 print(f"[AI] Error loading weights: {e}. Starting fresh.")
                 self.agent.set_mode('TRAINING')
@@ -161,10 +165,10 @@ class Simulation:
         canvas_w = self.width - self.sidebar_w
         canvas_h = self.height - self.topnav_h
         center_x = canvas_w // 2
-        center_y = self.topnav_h + (canvas_h // 2)
+        center_y = self.topnav_h + int(canvas_h * 0.34)
 
         self.intersection.update_dimensions(center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
-        self.renderer.update_dimensions(self.screen, center_x, center_y, self.width, self.height, self.topnav_h, self.sidebar_w)
+        self.renderer.update_dimensions(self.screen, self.intersection.cx, self.intersection.cy, self.width, self.height, self.topnav_h, self.sidebar_w, city=self.intersection)
         self.lighting.update_dimensions(self.width, self.height)
         self.hud.update_dimensions(self.width, self.height, self.topnav_h, self.sidebar_w)
         self.pedestrian_mgr.update_dimensions()
@@ -221,6 +225,12 @@ class Simulation:
         self.agent.save_weights(weights_path)
         print(f"[AI] Weights saved to {weights_path}")
 
+    def _signal_for(self, car):
+        return self.intersection.signal_for(car, self.traffic_controller)
+
+    def _bounds_for(self, car):
+        return self.intersection.bounds_for(car)
+
     def spawn_random_vehicle(self, v_type=None):
         if len(self.vehicles) >= MAX_ACTIVE_CARS:
             return None
@@ -246,6 +256,12 @@ class Simulation:
     def spawn_ambulance(self):
         return self.spawn_random_vehicle(v_type='AMBULANCE')
 
+    def spawn_fire(self):
+        return self.spawn_random_vehicle(v_type='FIRE')
+
+    def spawn_police(self):
+        return self.spawn_random_vehicle(v_type='POLICE')
+
     def update_spawners(self, dt):
         if len(self.vehicles) >= MAX_ACTIVE_CARS:
             return
@@ -268,50 +284,13 @@ class Simulation:
                     self.stats['total_spawned'] += 1
 
     def handle_collisions(self):
-        """Check SAT OBB collisions between all active vehicle pairs with fault attribution and physical anti-overlap."""
-        n = len(self.vehicles)
-        for i in range(n):
-            v1 = self.vehicles[i]
-            for j in range(i + 1, n):
-                v2 = self.vehicles[j]
+        """Vehicle-vehicle SAT pass plus vehicle-pedestrian checks."""
+        def on_crash(v1, v2, cx, cy):
+            self.stats['total_crashes'] += 1
+            self.particle_mgr.emit_crash(cx, cy, intensity=1.5)
+            self.particle_mgr.add_skid(v1.x, v1.y, v2.x, v2.y)
 
-                dist = math.hypot(v1.x - v2.x, v1.y - v2.y)
-                max_rad = (v1.length + v2.length) / 2.0
-                if dist > max_rad * 1.2:
-                    continue
-
-                if check_sat_collision(v1.get_corners(), v2.get_corners()):
-                    # Elastic positional separation to prevent vehicles from overlapping
-                    if dist > 0.01:
-                        sep = max(1.5, (max_rad - dist) * 0.5)
-                        nx = (v1.x - v2.x) / dist
-                        ny = (v1.y - v2.y) / dist
-                        v1.x += nx * sep
-                        v1.y += ny * sep
-                        v2.x -= nx * sep
-                        v2.y -= ny * sep
-
-                    if v1.is_alive or v2.is_alive:
-                        cx = (v1.x + v2.x) / 2.0
-                        cy = (v1.y + v2.y) / 2.0
-
-                        v1_moving = v1.speed > 0.3
-                        v2_moving = v2.speed > 0.3
-                        if v1_moving and not v2_moving:
-                            v1_fault, v2_fault = True, False
-                        elif v2_moving and not v1_moving:
-                            v1_fault, v2_fault = False, True
-                        else:
-                            v1_fault, v2_fault = True, True
-
-                        if v1.is_alive:
-                            v1.crash(is_at_fault=v1_fault)
-                        if v2.is_alive:
-                            v2.crash(is_at_fault=v2_fault)
-                        self.stats['total_crashes'] += 1
-
-                        self.particle_mgr.emit_crash(cx, cy, intensity=1.5)
-                        self.particle_mgr.add_skid(v1.x, v1.y, v2.x, v2.y)
+        resolve_vehicle_collisions(self.vehicles, on_crash=on_crash)
 
         # Check vehicle-pedestrian collisions
         for v in self.vehicles:
@@ -323,17 +302,21 @@ class Simulation:
                 dist = math.hypot(v.x - ped.x, v.y - ped.y)
                 if dist < (v.length / 2 + ped.radius + 2.0):
                     if check_sat_collision(v.get_corners(), ped.get_corners()):
-                        v.crash(is_at_fault=True)
+                        v.crash(is_at_fault=True, hit_pedestrian=True)
                         ped.is_alive = False
                         self.stats['total_crashes'] += 1
                         self.particle_mgr.emit_crash(ped.x, ped.y, intensity=0.8)
                         break
 
     def step_simulation(self, dt):
-        scaled_dt = dt * self.sim_speed
-
         if self.sim_speed <= 0.0:
             return
+        n_sub = max(1, min(5, int(round(self.sim_speed))))
+        for _ in range(n_sub):
+            self._tick_physics(dt)
+
+    def _tick_physics(self, dt):
+        scaled_dt = dt
 
         if self.agent.mode == 'TRAINING':
             self.training_time += scaled_dt
@@ -364,13 +347,13 @@ class Simulation:
             if not car.is_alive:
                 continue
 
-            tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
+            tl_state = self._signal_for(car)
 
             # Deep RL Decision only when starting a new macro-action
             if car.frames_in_action == 0 or car.macro_start_state is None:
                 raw_state = car.sensors.update(
                     self.vehicles, tl_state,
-                    self.intersection.junction_bounds,
+                    self._bounds_for(car),
                     friction_coeff=grip,
                     pedestrians=self.pedestrian_mgr.pedestrians
                 )
@@ -379,18 +362,23 @@ class Simulation:
                 car.macro_start_state = state
                 car.accumulated_reward = 0.0
 
-                expert_prob = max(0.0, (self.agent.epsilon - 0.2) / 0.8) if self.agent.mode == 'TRAINING' else 0.0
+                expert_prob = 0.0
+                if self.agent.mode == 'UNTRAINED':
+                    expert_prob = 1.0
+                elif self.agent.mode == 'TRAINING':
+                    expert_prob = max(0.0, (self.agent.epsilon - 0.12) / 0.88)
                 if random.random() < expert_prob:
-                    action = get_expert_action(car, tl_state, car.get_distance_to_stop_line(), self.vehicles, self.intersection.junction_bounds)
+                    action = get_expert_action(car, tl_state, car.get_distance_to_stop_line(), self.vehicles, self._bounds_for(car))
                 else:
                     action = self.agent.select_action(state)
+                action = apply_safety_shield(car, action, tl_state, self.vehicles, self._bounds_for(car))
                 
                 car.macro_action = action
                 car.apply_action(action)
 
         # 7. Physics Update (Pass 2)
         for car in self.vehicles:
-            tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
+            tl_state = self._signal_for(car)
             car.update_physics(
                 scaled_dt, 
                 friction_coeff=grip, 
@@ -398,7 +386,8 @@ class Simulation:
                 all_vehicles=self.vehicles,
                 puddles=self.weather.puddles,
                 v2v_enabled=self.v2v_enabled,
-                pedestrians=self.pedestrian_mgr.pedestrians
+                pedestrians=self.pedestrian_mgr.pedestrians,
+                conflict_bounds=self._bounds_for(car)
             )
 
         # 8. Collision Checks (Pass 3)
@@ -409,8 +398,9 @@ class Simulation:
             if car.macro_start_state is None:
                 continue
 
-            tl_state = self.traffic_controller.get_light_state(car.route.start_dir)
-            step_reward = self.agent.calculate_reward(car, tl_state, car.get_distance_to_stop_line())
+            tl_state = self._signal_for(car)
+            step_reward = self.agent.calculate_reward(
+                car, tl_state, car.get_distance_to_stop_line(), dt=scaled_dt)
             car.total_reward += step_reward
             car.accumulated_reward += (RL_GAMMA ** car.frames_in_action) * step_reward
             car.frames_in_action += 1
@@ -425,7 +415,7 @@ class Simulation:
 
                 raw_next_state = car.sensors.update(
                     self.vehicles, tl_state,
-                    self.intersection.junction_bounds,
+                    self._bounds_for(car),
                     friction_coeff=grip,
                     pedestrians=self.pedestrian_mgr.pedestrians
                 )
@@ -436,7 +426,7 @@ class Simulation:
             elif car.frames_in_action >= ACTION_REPEAT:
                 raw_next_state = car.sensors.update(
                     self.vehicles, tl_state,
-                    self.intersection.junction_bounds,
+                    self._bounds_for(car),
                     friction_coeff=grip,
                     pedestrians=self.pedestrian_mgr.pedestrians
                 )
@@ -458,8 +448,15 @@ class Simulation:
             if car.has_finished:
                 self.stats['total_passed'] += 1
                 self.training_episodes += 1
-            elif car.has_crashed and getattr(car, 'time_since_crash', 0.0) >= 3.0:
-                self.training_episodes += 1
+            elif car.has_crashed:
+                linger = 1.2 if (
+                    math.hypot(car.x - self.intersection.rbx, car.y - self.intersection.rby)
+                    < self.intersection.r_outer + 12.0
+                ) else 3.0
+                if getattr(car, 'time_since_crash', 0.0) >= linger:
+                    self.training_episodes += 1
+                else:
+                    surviving.append(car)
             else:
                 surviving.append(car)
         self.vehicles = surviving
@@ -518,6 +515,10 @@ class Simulation:
                         self.spawn_random_vehicle()
                     elif event.key == pygame.K_a:
                         self.spawn_ambulance()
+                    elif event.key == pygame.K_f:
+                        self.spawn_fire()
+                    elif event.key == pygame.K_p:
+                        self.spawn_police()
                     elif event.key == pygame.K_r:
                         self.reset_statistics()
 
